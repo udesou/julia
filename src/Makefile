@@ -4,6 +4,8 @@ BUILDDIR := .
 include $(JULIAHOME)/deps/Versions.make
 include $(JULIAHOME)/Make.inc
 include $(JULIAHOME)/deps/llvm-ver.make
+MMTK_DIR := ${MMTK_JULIA_DIR}
+MMTK_DIR_INCLUDE := $(MMTK_DIR)/api
 
 JCFLAGS += $(CFLAGS)
 JCXXFLAGS += $(CXXFLAGS)
@@ -15,7 +17,7 @@ JLDFLAGS += $(LDFLAGS)
 #  #include_next <options.h>
 #  #define ARGUMENT_TO_OVERRIDE 1
 FLAGS := \
-	-D_GNU_SOURCE -I$(BUILDDIR) -I$(SRCDIR) \
+	-D_GNU_SOURCE -I$(BUILDDIR) -I$(SRCDIR) -I$(MMTK_DIR_INCLUDE) \
 	-I$(SRCDIR)/flisp -I$(SRCDIR)/support \
 	-I$(LIBUV_INC) -I$(build_includedir) -DLIBRARY_EXPORTS \
 	-I$(JULIAHOME)/deps/valgrind
@@ -120,8 +122,8 @@ ifeq ($(OS), Darwin)
 CLANG_LDFLAGS += -Wl,-undefined,dynamic_lookup
 endif
 
-
-COMMON_LIBS := -L$(build_shlibdir) -L$(build_libdir) $(LIBUV) $(LIBUTF8PROC) $(NO_WHOLE_ARCHIVE) $(LIBUNWIND) $(LLVMLINK) $(OSLIBS)
+MMTK_LIB := -L$(MMTK_DIR)/target/debug/ -lmmtk_julia
+COMMON_LIBS := -L$(build_shlibdir) -L$(build_libdir) $(LIBUV) $(LIBUTF8PROC) $(NO_WHOLE_ARCHIVE) $(LIBUNWIND) $(LLVMLINK) $(OSLIBS) $(MMTK_LIB)
 DEBUG_LIBS := $(WHOLE_ARCHIVE) $(BUILDDIR)/flisp/libflisp-debug.a $(WHOLE_ARCHIVE) $(BUILDDIR)/support/libsupport-debug.a $(COMMON_LIBS)
 RELEASE_LIBS := $(WHOLE_ARCHIVE) $(BUILDDIR)/flisp/libflisp.a $(WHOLE_ARCHIVE) $(BUILDDIR)/support/libsupport.a $(COMMON_LIBS)
 
@@ -315,7 +317,7 @@ else
 endif
 
 $(build_shlibdir)/libjulia-debug.$(JL_MAJOR_MINOR_SHLIB_EXT): $(SRCDIR)/julia.expmap $(DOBJS) $(BUILDDIR)/flisp/libflisp-debug.a $(BUILDDIR)/support/libsupport-debug.a $(LIBUV)
-	@$(call PRINT_LINK, $(CXXLD) $(JCXXFLAGS) $(CXXLDFLAGS) $(DEBUGFLAGS) $(DOBJS) $(RPATH_LIB) -o $@ $(JLDFLAGS) $(JLIBLDFLAGS) $(DEBUG_LIBS) $(SONAME_DEBUG))
+	$(call PRINT_LINK, $(CXXLD) $(JCXXFLAGS) $(CXXLDFLAGS) $(DEBUGFLAGS) $(DOBJS) $(RPATH_LIB) -o $@ $(JLDFLAGS) $(JLIBLDFLAGS) $(DEBUG_LIBS) $(SONAME_DEBUG))
 	$(INSTALL_NAME_CMD)libjulia-debug.$(SHLIB_EXT) $@
 ifneq ($(OS), WINNT)
 	@ln -sf libjulia-debug.$(JL_MAJOR_MINOR_SHLIB_EXT) $(build_shlibdir)/libjulia-debug.$(JL_MAJOR_SHLIB_EXT)
