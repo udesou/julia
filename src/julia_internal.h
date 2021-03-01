@@ -372,10 +372,10 @@ STATIC_INLINE void jl_gc_wb_binding(jl_binding_t *bnd, void *val) JL_NOTSAFEPOIN
 STATIC_INLINE void jl_gc_wb_buf(void *parent, void *bufptr, size_t minsz) JL_NOTSAFEPOINT // parent isa jl_value_t*
 {
     // if parent is marked and buf is not
-    if (__unlikely(jl_astaggedvalue(parent)->bits.gc & 1)) {
-        jl_ptls_t ptls = jl_get_ptls_states();
-        gc_setmark_buf(ptls, bufptr, 3, minsz);
-    }
+//    if (__unlikely(jl_astaggedvalue(parent)->bits.gc & 1)) {
+//        jl_ptls_t ptls = jl_get_ptls_states();
+//        gc_setmark_buf(ptls, bufptr, 3, minsz);
+//    }
 }
 
 void gc_debug_print_status(void);
