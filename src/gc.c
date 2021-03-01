@@ -695,25 +695,8 @@ STATIC_INLINE int gc_setmark_tag(jl_taggedvalue_t *o, uint8_t mark_mode,
 STATIC_INLINE void gc_setmark_big(jl_ptls_t ptls, jl_taggedvalue_t *o,
                                   uint8_t mark_mode) JL_NOTSAFEPOINT
 {
-    assert(!page_metadata(o));
-    bigval_t *hdr = bigval_header(o);
-    if (mark_mode == GC_OLD_MARKED) {
-        ptls->gc_cache.perm_scanned_bytes += hdr->sz & ~3;
-        gc_queue_big_marked(ptls, hdr, 0);
-    }
-    else {
-        ptls->gc_cache.scanned_bytes += hdr->sz & ~3;
-        // We can't easily tell if the object is old or being promoted
-        // from the gc bits but if the `age` is `0` then the object
-        // must be already on a young list.
-        if (mark_reset_age && hdr->age) {
-            // Reset the object as if it was just allocated
-            hdr->age = 0;
-            gc_queue_big_marked(ptls, hdr, 1);
-        }
-    }
-    objprofile_count(jl_typeof(jl_valueof(o)),
-                     mark_mode == GC_OLD_MARKED, hdr->sz & ~3);
+    // REMOVED!!!
+    assert(0);
 }
 
 // This function should be called exactly once during marking for each pool
@@ -880,28 +863,9 @@ static void sweep_weak_refs(void)
 // Size includes the tag and the tag is not cleared!!
 JL_DLLEXPORT jl_value_t *jl_gc_big_alloc(jl_ptls_t ptls, size_t sz)
 {
-    maybe_collect(ptls);
-    size_t offs = offsetof(bigval_t, header);
-    assert(sz >= sizeof(jl_taggedvalue_t) && "sz must include tag");
-    static_assert(offsetof(bigval_t, header) >= sizeof(void*), "Empty bigval header?");
-    static_assert(sizeof(bigval_t) % JL_HEAP_ALIGNMENT == 0, "");
-    size_t allocsz = LLT_ALIGN(sz + offs, JL_CACHE_BYTE_ALIGNMENT);
-    if (allocsz < sz)  // overflow in adding offs, size was "negative"
-        jl_throw(jl_memory_exception);
-    bigval_t *v = (bigval_t*)malloc_cache_align(allocsz);
-    if (v == NULL)
-        jl_throw(jl_memory_exception);
-    gc_invoke_callbacks(jl_gc_cb_notify_external_alloc_t,
-        gc_cblist_notify_external_alloc, (v, allocsz));
-    ptls->gc_num.allocd += allocsz;
-    ptls->gc_num.bigalloc++;
-#ifdef MEMDEBUG
-    memset(v, 0xee, allocsz);
-#endif
-    v->sz = allocsz;
-    v->age = 0;
-    gc_big_object_link(v, &ptls->heap.big_objects);
-    return jl_valueof(&v->header);
+    // REMOVED!!!
+    assert(0);
+    return NULL;
 }
 
 // Sweep list rooted at *pv, removing and freeing any unmarked objects.
@@ -909,61 +873,15 @@ JL_DLLEXPORT jl_value_t *jl_gc_big_alloc(jl_ptls_t ptls, size_t sz)
 static bigval_t **sweep_big_list(int sweep_full, bigval_t **pv) JL_NOTSAFEPOINT
 {
     bigval_t *v = *pv;
-    while (v != NULL) {
-        bigval_t *nxt = v->next;
-        int bits = v->bits.gc;
-        int old_bits = bits;
-        if (gc_marked(bits)) {
-            pv = &v->next;
-            int age = v->age;
-            if (age >= PROMOTE_AGE || bits == GC_OLD_MARKED) {
-                if (sweep_full || bits == GC_MARKED) {
-                    bits = GC_OLD;
-                }
-            }
-            else {
-                inc_sat(age, PROMOTE_AGE);
-                v->age = age;
-                bits = GC_CLEAN;
-            }
-            v->bits.gc = bits;
-        }
-        else {
-            // Remove v from list and free it
-            *pv = nxt;
-            if (nxt)
-                nxt->prev = pv;
-            gc_num.freed += v->sz&~3;
-#ifdef MEMDEBUG
-            memset(v, 0xbb, v->sz&~3);
-#endif
-            gc_invoke_callbacks(jl_gc_cb_notify_external_free_t,
-                gc_cblist_notify_external_free, (v));
-            jl_free_aligned(v);
-        }
-        gc_time_count_big(old_bits, bits);
-        v = nxt;
-    }
+    // REMOVED!!!
+    assert(0);
     return pv;
 }
 
 static void sweep_big(jl_ptls_t ptls, int sweep_full) JL_NOTSAFEPOINT
 {
-    gc_time_big_start();
-    for (int i = 0;i < jl_n_threads;i++)
-        sweep_big_list(sweep_full, &jl_all_tls_states[i]->heap.big_objects);
-    if (sweep_full) {
-        bigval_t **last_next = sweep_big_list(sweep_full, &big_objects_marked);
-        // Move all survivors from big_objects_marked list to big_objects list.
-        if (ptls->heap.big_objects)
-            ptls->heap.big_objects->prev = last_next;
-        *last_next = ptls->heap.big_objects;
-        ptls->heap.big_objects = big_objects_marked;
-        if (ptls->heap.big_objects)
-            ptls->heap.big_objects->prev = &ptls->heap.big_objects;
-        big_objects_marked = NULL;
-    }
-    gc_time_big_end();
+    // REMOVED!!!
+    assert(0);
 }
 
 // tracking Arrays with malloc'd storage
@@ -1127,59 +1045,83 @@ static NOINLINE jl_taggedvalue_t *add_page(jl_gc_pool_t *p) JL_NOTSAFEPOINT
     return fl;
 }
 
-// Size includes the tag and the tag is not cleared!!
-JL_DLLEXPORT jl_value_t *jl_gc_pool_alloc(jl_ptls_t ptls, int pool_offset,
-                                          int osize)
+#include "mmtk.h"
+
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset,
+                                                    int osize)
 {
-    // Use the pool offset instead of the pool address as the argument
-    // to workaround a llvm bug.
-    // Ref https://llvm.org/bugs/show_bug.cgi?id=27190
-    jl_gc_pool_t *p = (jl_gc_pool_t*)((char*)ptls + pool_offset);
-    assert(ptls->gc_state == 0);
-#ifdef MEMDEBUG
-    return jl_gc_big_alloc(ptls, osize);
-#endif
-    maybe_collect(ptls);
-    ptls->gc_num.allocd += osize;
-    ptls->gc_num.poolalloc++;
-    // first try to use the freelist
-    jl_taggedvalue_t *v = p->freelist;
-    if (v) {
-        jl_taggedvalue_t *next = v->next;
-        p->freelist = next;
-        if (__unlikely(gc_page_data(v) != gc_page_data(next))) {
-            // we only update pg's fields when the freelist changes page
-            // since pg's metadata is likely not in cache
-            jl_gc_pagemeta_t *pg = jl_assume(page_metadata(v));
-            assert(pg->osize == p->osize);
-            pg->nfree = 0;
-            pg->has_young = 1;
-        }
-        return jl_valueof(v);
+    jl_value_t *v;
+
+//    printf("Allocating default object...\n");
+//    fflush(stdout);
+
+    // v needs to be 16 byte aligned, therefore v_tagged needs to be offset accordingly to consider the size of header
+    jl_taggedvalue_t *v_tagged = (jl_taggedvalue_t *) // malloc(osize);
+            alloc(ptls->mmtk_mutator, osize, 16, 16 - (sizeof(jl_taggedvalue_t) % 16), 0);
+
+//    jl_value_t* v_tagged_aligned = ((jl_value_t*)((char*)(v_tagged) + sizeof(jl_taggedvalue_t)));
+
+//    printf("v_tagged %p\n", (void*) v_tagged);
+    v = jl_valueof(v_tagged);
+//    printf("v = %p\n", (void*) v);
+
+    return v;
+}
+
+
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t sz)
+{
+//    printf("Allocating big object...\n");
+//    fflush(stdout);
+
+    size_t offs = offsetof(bigval_t, header);
+    assert(sz >= sizeof(jl_taggedvalue_t) && "sz must include tag");
+    static_assert(offsetof(bigval_t, header) >= sizeof(void*), "Empty bigval header?");
+    static_assert(sizeof(bigval_t) % JL_HEAP_ALIGNMENT == 0, "");
+    size_t allocsz = LLT_ALIGN(sz + offs, JL_CACHE_BYTE_ALIGNMENT);
+    if (allocsz < sz)  // overflow in adding offs, size was "negative"
+        jl_throw(jl_memory_exception);
+    bigval_t *v = (bigval_t*)alloc(ptls->mmtk_mutator, allocsz, 16, 0, 0);
+    if (v == NULL)
+        jl_throw(jl_memory_exception);
+    v->sz = allocsz;
+    return jl_valueof(&v->header);
+}
+
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc(jl_ptls_t ptls, jl_gc_pool_t *p, int pool_offset,
+int osize, size_t allocsz, bool_t big_alloc, size_t sz, void* ty)
+{
+    jl_value_t *v;
+
+    if (!big_alloc) {
+        // osize makes sure that there is enough room to make the memory for v 16-byte aligned
+        v = jl_mmtk_gc_alloc_default(ptls, pool_offset, osize);
+    } else {
+        v = jl_mmtk_gc_alloc_big(ptls, allocsz);
     }
-    // if the freelist is empty we reuse empty but not freed pages
-    v = p->newpages;
-    jl_taggedvalue_t *next = (jl_taggedvalue_t*)((char*)v + osize);
-    // If there's no pages left or the current page is used up,
-    // we need to use the slow path.
-    char *cur_page = gc_page_data((char*)v - 1);
-    if (__unlikely(!v || cur_page + GC_PAGE_SZ < (char*)next)) {
-        if (v) {
-            // like the freelist case,
-            // but only update the page metadata when it is full
-            jl_gc_pagemeta_t *pg = jl_assume(page_metadata((char*)v - 1));
-            assert(pg->osize == p->osize);
-            pg->nfree = 0;
-            pg->has_young = 1;
-            v = *(jl_taggedvalue_t**)cur_page;
-        }
-        // Not an else!!
-        if (!v)
-            v = add_page(p);
-        next = (jl_taggedvalue_t*)((char*)v + osize);
-    }
-    p->newpages = next;
-    return jl_valueof(v);
+
+    jl_set_typeof(v, ty);
+    jl_value_t *ty_v = jl_typeof(v);
+    assert(ty == ty_v && "types are not equal???");
+
+//    if ((uintptr_t)ty != (uintptr_t)0x4eadc000) { // jl_buff_tag
+//        jl_value_t *header = (jl_value_t*)(jl_astaggedvalue(v)->header);
+//
+//
+//        if (ty) {
+//            const char *type_name = jl_typename_str((jl_value_t *) ty);
+//            if (type_name) {
+//                printf("2 - Type of v = %p is %p (passed %p = %s), header is %p\n",
+//                        (void*) v, (void*)ty_v, (void*)ty, type_name, (void*) header);
+//                fflush(stdout);
+//                assert(ty == ty_v && "types are not equal???");
+//            }
+//        } else {
+//            printf("3 - Type of v = %p is %p (passed %p)\n", (void*) v, (void*)ty_v, (void*)ty);
+//            fflush(stdout);
+//        }
+//    }
+    return v;
 }
 
 int jl_gc_classify_pools(size_t sz, int *osize)
@@ -3189,6 +3131,8 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     memset(&ptls->gc_num, 0, sizeof(jl_thread_gc_num_t));
     assert(gc_num.interval == default_collect_interval);
     ptls->gc_num.allocd = -(int64_t)gc_num.interval;
+    MMTk_Mutator mmtk_mutator = bind_mutator((void *)ptls);
+    ptls->mmtk_mutator = mmtk_mutator;
 }
 
 // System-wide initializations
@@ -3214,6 +3158,10 @@ void jl_gc_init(void)
     if (maxmem > max_collect_interval)
         max_collect_interval = maxmem;
 #endif
+
+//    // TODO initialize MMTk by calling gc_init
+//    // FIXME size should be variable
+    gc_init(786432000*4);
     jl_gc_mark_sp_t sp = {NULL, NULL, NULL, NULL};
     gc_mark_loop(NULL, sp);
 }
@@ -3399,14 +3347,15 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     if (sz <= len) return s;
     jl_taggedvalue_t *v = jl_astaggedvalue(s);
     size_t strsz = len + sizeof(size_t) + 1;
-    if (strsz <= GC_MAX_SZCLASS ||
+    if (strsz <= GC_MAX_SZCLASS
         // TODO: because of issue #17971 we can't resize old objects
-        gc_marked(v->bits.gc)) {
+        ) {
         // pool allocated; can't be grown in place so allocate a new object.
         jl_value_t *snew = jl_alloc_string(sz);
         memcpy(jl_string_data(snew), jl_string_data(s), len);
         return snew;
     }
+    assert(0);
     size_t newsz = sz + sizeof(size_t) + 1;
     size_t offs = sizeof(bigval_t);
     size_t oldsz = LLT_ALIGN(strsz + offs, JL_CACHE_BYTE_ALIGNMENT);
@@ -3423,7 +3372,6 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     // old pointer.
     bigval_t *newbig = (bigval_t*)gc_managed_realloc_(ptls, hdr, allocsz, oldsz, 1, s, 0);
     newbig->sz = allocsz;
-    newbig->age = 0;
     gc_big_object_link(newbig, &ptls->heap.big_objects);
     jl_value_t *snew = jl_valueof(&newbig->header);
     *(size_t*)snew = sz;

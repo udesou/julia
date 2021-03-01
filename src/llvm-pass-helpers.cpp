@@ -226,8 +226,8 @@ namespace jl_intrinsics {
 }
 
 namespace jl_well_known {
-    static const char *GC_BIG_ALLOC_NAME = "jl_gc_big_alloc";
-    static const char *GC_POOL_ALLOC_NAME = "jl_gc_pool_alloc";
+    static const char *GC_BIG_ALLOC_NAME = "jl_mmtk_gc_alloc_big";
+    static const char *GC_POOL_ALLOC_NAME = "jl_mmtk_gc_alloc_default";
     static const char *GC_QUEUE_ROOT_NAME = "jl_gc_queue_root";
 
     using jl_intrinsics::addGCAllocAttributes;

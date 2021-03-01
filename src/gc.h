@@ -227,18 +227,15 @@ STATIC_INLINE void *gc_repush_markdata_(jl_gc_mark_sp_t *sp, size_t size) JL_NOT
 // layout for big (>2k) objects
 
 JL_EXTENSION typedef struct _bigval_t {
-    struct _bigval_t *next;
-    struct _bigval_t **prev; // pointer to the next field of the prev entry
     union {
         size_t sz;
-        uintptr_t age : 2;
     };
 #ifdef _P64 // Add padding so that the value is 64-byte aligned
     // (8 pointers of 8 bytes each) - (4 other pointers in struct)
     void *_padding[8 - 4];
 #else
     // (16 pointers of 4 bytes each) - (4 other pointers in struct)
-    void *_padding[16 - 4];
+    void *_padding[16 - 2];
 #endif
     //struct jl_taggedvalue_t <>;
     union {
@@ -480,19 +477,14 @@ STATIC_INLINE struct jl_gc_metadata_ext page_metadata_ext(void *_data) JL_NOTSAF
 
 STATIC_INLINE void gc_big_object_unlink(const bigval_t *hdr) JL_NOTSAFEPOINT
 {
-    *hdr->prev = hdr->next;
-    if (hdr->next) {
-        hdr->next->prev = hdr->prev;
-    }
+    // REMOVED!!!
+    assert(0);
 }
 
 STATIC_INLINE void gc_big_object_link(bigval_t *hdr, bigval_t **list) JL_NOTSAFEPOINT
 {
-    hdr->next = *list;
-    hdr->prev = list;
-    if (*list)
-        (*list)->prev = &hdr->next;
-    *list = hdr;
+    // REMOVED!!!
+    assert(0);
 }
 
 STATIC_INLINE void gc_mark_sp_init(jl_gc_mark_cache_t *gc_cache, jl_gc_mark_sp_t *sp)

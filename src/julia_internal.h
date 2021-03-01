@@ -167,6 +167,9 @@ JL_DLLEXPORT extern const char *jl_filename;
 JL_DLLEXPORT jl_value_t *jl_gc_pool_alloc(jl_ptls_t ptls, int pool_offset,
                                           int osize);
 JL_DLLEXPORT jl_value_t *jl_gc_big_alloc(jl_ptls_t ptls, size_t allocsz);
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc(jl_ptls_t ptls, jl_gc_pool_t *p, int pool_offset,
+int osize, size_t allocsz, bool_t big_alloc, size_t sz, void *ty);
+
 int jl_gc_classify_pools(size_t sz, int *osize);
 extern jl_mutex_t gc_perm_lock;
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero,
@@ -268,22 +271,26 @@ STATIC_INLINE uint8_t JL_CONST_FUNC jl_gc_szclass(unsigned sz)
 
 STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
 {
-    jl_value_t *v;
     const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+
+    int pool_id = -1, osize = -1;
+    jl_gc_pool_t *p = NULL;
+    bool_t big_alloc = 1;
+
     if (sz <= GC_MAX_SZCLASS) {
-        int pool_id = jl_gc_szclass(allocsz);
-        jl_gc_pool_t *p = &ptls->heap.norm_pools[pool_id];
-        int osize = jl_gc_sizeclasses[pool_id];
-        v = jl_gc_pool_alloc(ptls, (char*)p - (char*)ptls, osize);
+        pool_id = jl_gc_szclass(allocsz);
+        p = &ptls->heap.norm_pools[pool_id];
+        osize = jl_gc_sizeclasses[pool_id];
+        big_alloc = 0;
     }
-    else {
-        if (allocsz < sz) // overflow in adding offs, size was "negative"
-            jl_throw(jl_memory_exception);
-        v = jl_gc_big_alloc(ptls, allocsz);
-    }
-    jl_set_typeof(v, ty);
-    return v;
+
+    if (allocsz < sz) // overflow in adding offs, size was "negative"
+        jl_throw(jl_memory_exception);
+
+    // Replaced Julia's GC allocation with allocation using calloc
+    return jl_mmtk_gc_alloc(ptls, p, (char*)p - (char*)ptls, osize, allocsz, big_alloc, sz, ty);
 }
+
 JL_DLLEXPORT jl_value_t *jl_gc_alloc(jl_ptls_t ptls, size_t sz, void *ty);
 // On GCC, only inline when sz is constant
 #ifdef __GNUC__

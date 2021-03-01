@@ -232,6 +232,7 @@ struct _jl_tls_states_t {
         uint64_t sleep_enter;
         uint64_t sleep_leave;
     )
+    void* mmtk_mutator;
 };
 
 // Update codegen version in `ccall.cpp` after changing either `pause` or `wake`
