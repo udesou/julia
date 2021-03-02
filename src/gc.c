@@ -3274,8 +3274,6 @@ JL_DLLEXPORT void *jl_realloc(void *p, size_t sz)
 
 JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz)
 {
-    jl_ptls_t ptls = jl_get_ptls_states();
-    maybe_collect(ptls);
     size_t allocsz = LLT_ALIGN(sz, JL_CACHE_BYTE_ALIGNMENT);
     if (allocsz < sz)  // overflow in adding offs, size was "negative"
         jl_throw(jl_memory_exception);
