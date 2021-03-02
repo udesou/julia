@@ -7,6 +7,7 @@ include $(JULIAHOME)/deps/llvm-ver.make
 MMTK_DIR := ${MMTK_JULIA_DIR}
 MMTK_DIR_INCLUDE := $(MMTK_DIR)/api
 
+
 JCFLAGS += $(CFLAGS)
 JCXXFLAGS += $(CXXFLAGS)
 JCPPFLAGS += $(CPPFLAGS)
@@ -122,7 +123,7 @@ ifeq ($(OS), Darwin)
 CLANG_LDFLAGS += -Wl,-undefined,dynamic_lookup
 endif
 
-MMTK_LIB := -L$(MMTK_DIR)/target/debug/ -lmmtk_julia
+MMTK_LIB := -L$(MMTK_DIR)/target/${MMTK_BUILD}/ -lmmtk_julia
 COMMON_LIBS := -L$(build_shlibdir) -L$(build_libdir) $(LIBUV) $(LIBUTF8PROC) $(NO_WHOLE_ARCHIVE) $(LIBUNWIND) $(LLVMLINK) $(OSLIBS) $(MMTK_LIB)
 DEBUG_LIBS := $(WHOLE_ARCHIVE) $(BUILDDIR)/flisp/libflisp-debug.a $(WHOLE_ARCHIVE) $(BUILDDIR)/support/libsupport-debug.a $(COMMON_LIBS)
 RELEASE_LIBS := $(WHOLE_ARCHIVE) $(BUILDDIR)/flisp/libflisp.a $(WHOLE_ARCHIVE) $(BUILDDIR)/support/libsupport.a $(COMMON_LIBS)
