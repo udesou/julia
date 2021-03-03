@@ -187,7 +187,6 @@ static inline int is_ntuple_long(jl_value_t *v)
 JL_DLLEXPORT jl_array_t *jl_reshape_array(jl_value_t *atype, jl_array_t *data,
                                           jl_value_t *_dims)
 {
-    assert(0);
     jl_ptls_t ptls = jl_get_ptls_states();
     jl_array_t *a;
     size_t ndims = jl_nfields(_dims);
