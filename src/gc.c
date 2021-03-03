@@ -3178,7 +3178,6 @@ JL_DLLEXPORT void *jl_gc_counted_malloc(size_t sz)
 {
     jl_ptls_t ptls = jl_get_ptls_states();
     if (ptls && ptls->world_age) {
-        maybe_collect(ptls);
         ptls->gc_num.allocd += sz;
         ptls->gc_num.malloc++;
     }
@@ -3189,7 +3188,6 @@ JL_DLLEXPORT void *jl_gc_counted_calloc(size_t nm, size_t sz)
 {
     jl_ptls_t ptls = jl_get_ptls_states();
     if (ptls && ptls->world_age) {
-        maybe_collect(ptls);
         ptls->gc_num.allocd += nm*sz;
         ptls->gc_num.malloc++;
     }
@@ -3210,7 +3208,6 @@ JL_DLLEXPORT void *jl_gc_counted_realloc_with_old_size(void *p, size_t old, size
 {
     jl_ptls_t ptls = jl_get_ptls_states();
     if (ptls && ptls->world_age) {
-        maybe_collect(ptls);
         if (sz < old)
             ptls->gc_num.freed += (old - sz);
         else
