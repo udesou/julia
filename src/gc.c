@@ -1059,6 +1059,9 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offse
     jl_taggedvalue_t *v_tagged = (jl_taggedvalue_t *) // malloc(osize);
             alloc(ptls->mmtk_mutator, osize, 16, 16 - (sizeof(jl_taggedvalue_t) % 16), 0);
 
+    ptls->gc_num.allocd += osize;
+    ptls->gc_num.poolalloc++;   // FIXME: rename pool alloc => std object alloc
+
 //    jl_value_t* v_tagged_aligned = ((jl_value_t*)((char*)(v_tagged) + sizeof(jl_taggedvalue_t)));
 
 //    printf("v_tagged %p\n", (void*) v_tagged);
@@ -1085,6 +1088,9 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t sz)
     if (v == NULL)
         jl_throw(jl_memory_exception);
     v->sz = allocsz;
+
+    ptls->gc_num.allocd += allocsz;
+    ptls->gc_num.bigalloc++;
     return jl_valueof(&v->header);
 }
 
