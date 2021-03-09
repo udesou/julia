@@ -183,18 +183,18 @@ if opt_level > 0
     @test occursin("call i32 @memcmp(", compare_large_struct_ir) || occursin("call i32 @bcmp(", compare_large_struct_ir)
     @test !occursin("%gcframe", compare_large_struct_ir)
 
-    @test occursin("jl_gc_pool_alloc", get_llvm(MutableStruct, Tuple{}))
+    @test occursin("jl_mmtk_gc_alloc_default", get_llvm(MutableStruct, Tuple{}))
     breakpoint_mutable_ir = get_llvm(breakpoint_mutable, Tuple{MutableStruct})
     @test !occursin("%gcframe", breakpoint_mutable_ir)
-    @test !occursin("jl_gc_pool_alloc", breakpoint_mutable_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", breakpoint_mutable_ir)
 
     breakpoint_badref_ir = get_llvm(breakpoint_badref, Tuple{MutableStruct})
     @test !occursin("%gcframe", breakpoint_badref_ir)
-    @test !occursin("jl_gc_pool_alloc", breakpoint_badref_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", breakpoint_badref_ir)
 
     breakpoint_ptrstruct_ir = get_llvm(breakpoint_ptrstruct, Tuple{RealStruct})
     @test !occursin("%gcframe", breakpoint_ptrstruct_ir)
-    @test !occursin("jl_gc_pool_alloc", breakpoint_ptrstruct_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", breakpoint_ptrstruct_ir)
 end
 
 function two_breakpoint(a::Float64)
