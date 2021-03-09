@@ -212,17 +212,17 @@ end
 if opt_level > 0
     breakpoint_f64_ir = get_llvm((a)->ccall(:jl_breakpoint, Cvoid, (Ref{Float64},), a),
                                  Tuple{Float64})
-    @test !occursin("jl_gc_pool_alloc", breakpoint_f64_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", breakpoint_f64_ir)
     breakpoint_any_ir = get_llvm((a)->ccall(:jl_breakpoint, Cvoid, (Ref{Any},), a),
                                  Tuple{Float64})
-    @test occursin("jl_gc_pool_alloc", breakpoint_any_ir)
+    @test occursin("jl_mmtk_gc_alloc_default", breakpoint_any_ir)
     two_breakpoint_ir = get_llvm(two_breakpoint, Tuple{Float64})
-    @test !occursin("jl_gc_pool_alloc", two_breakpoint_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", two_breakpoint_ir)
     @test occursin("llvm.lifetime.end", two_breakpoint_ir)
 
     @test load_dummy_ref(1234) === 1234
     load_dummy_ref_ir = get_llvm(load_dummy_ref, Tuple{Int})
-    @test !occursin("jl_gc_pool_alloc", load_dummy_ref_ir)
+    @test !occursin("jl_mmtk_gc_alloc_default", load_dummy_ref_ir)
     # Hopefully this is reliable enough. LLVM should be able to optimize this to a direct return.
     @test occursin("ret $Iptr %0", load_dummy_ref_ir)
 end
