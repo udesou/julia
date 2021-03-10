@@ -677,6 +677,7 @@ static int NOINLINE array_resize_buffer(jl_array_t *a, size_t newlen)
     else {
         newbuf = 1;
         if (nbytes >= MALLOC_THRESH) {
+            assert(0);
             a->data = jl_gc_managed_malloc(nbytes);
             jl_gc_track_malloced_array(ptls, a);
             a->flags.how = 2;
