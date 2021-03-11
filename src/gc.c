@@ -1084,7 +1084,7 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t sz)
     size_t allocsz = LLT_ALIGN(sz + offs, JL_CACHE_BYTE_ALIGNMENT);
     if (allocsz < sz)  // overflow in adding offs, size was "negative"
         jl_throw(jl_memory_exception);
-    bigval_t *v = (bigval_t*)alloc(ptls->mmtk_mutator, allocsz, 16, 0, 0);
+    bigval_t *v = (bigval_t*)alloc(ptls->mmtk_mutator, allocsz, 64, 0, 0);
     if (v == NULL)
         jl_throw(jl_memory_exception);
     v->sz = allocsz;
@@ -2909,7 +2909,7 @@ void jl_gc_init(void)
 
 //    // TODO initialize MMTk by calling gc_init
 //    // FIXME size should be variable
-    gc_init(786432000*4);
+    gc_init(524288000*10); // currently set as 5GB
     jl_gc_mark_sp_t sp = {NULL, NULL, NULL, NULL};
     gc_mark_loop(NULL, sp);
 }
