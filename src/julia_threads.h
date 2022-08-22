@@ -4,6 +4,10 @@
 #ifndef JL_THREADS_H
 #define JL_THREADS_H
 
+#ifdef MMTKHEAP
+#include "mmtkMutator.h"
+#endif
+
 #include "julia_atomics.h"
 #ifndef _OS_WINDOWS_
 #include "pthread.h"
@@ -277,6 +281,13 @@ typedef struct _jl_tls_states_t {
         uint64_t sleep_enter;
         uint64_t sleep_leave;
     )
+
+#ifdef MMTKHEAP
+    MMTkMutatorContext* mmtk_mutator_ptr;
+    void* cursor;
+    void* limit;
+#endif
+
 } jl_tls_states_t;
 
 typedef jl_tls_states_t *jl_ptls_t;
