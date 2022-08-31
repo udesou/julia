@@ -105,6 +105,12 @@ static jl_array_t *_new_array_(jl_value_t *atype, uint32_t ndims, size_t *dims,
     assert(isunboxed || elsz == sizeof(void*));
     assert(atype == NULL || isunion == jl_is_uniontype(jl_tparam0(atype)));
     int validated = jl_array_validate_dims(&nel, &tot, ndims, dims, elsz);
+    // FILE *fp;
+    // fp = fopen("/home/eduardo/mmtk-julia/allocarray_obj.log", "a");
+    // fprintf(fp, "tot for array: %d => ", tot);
+    // fflush(fp);
+    // fclose(fp);
+
     if (validated == 1)
         jl_exceptionf(jl_argumenterror_type, "invalid Array dimensions");
     else if (validated == 2)
@@ -132,7 +138,12 @@ static jl_array_t *_new_array_(jl_value_t *atype, uint32_t ndims, size_t *dims,
         tsz += tot;
         // jl_array_t is large enough that objects will always be aligned 16
         a = (jl_array_t*)jl_gc_alloc(ct->ptls, tsz, atype);
-        assert(((size_t)a & 15) == 0);
+        // FILE *fp;
+        // fp = fopen("/home/eduardo/mmtk-julia/allocarray_obj.log", "a");
+        // fprintf(fp, "allocating array at %p: tsz = %d, nel = %d, tot = %d, is_unboxed = %d, is_union = %d, elsz = %d, dims[0] = %d\n", a, tsz, nel, tot, isunboxed, isunion, elsz, dims[0]);
+        // fflush(fp);
+        // fclose(fp);
+        // assert(((size_t)a & 15) == 0);
         // No allocation or safepoint allowed after this
         a->flags.how = 0;
         data = (char*)a + doffs;
@@ -348,6 +359,7 @@ JL_DLLEXPORT jl_array_t *jl_ptr_to_array_1d(jl_value_t *atype, void *data,
         jl_gc_count_allocd(nel*elsz + (elsz == 1 ? 1 : 0));
     }
     else {
+        // printf("Previous flag = %d")
         a->flags.how = 0;
     }
 
@@ -471,6 +483,13 @@ JL_DLLEXPORT jl_value_t *jl_array_to_string(jl_array_t *a)
          ((a->maxsize + sizeof(void*) + 1 <= GC_MAX_SZCLASS) == (len + sizeof(void*) + 1 <= GC_MAX_SZCLASS)))) {
         jl_value_t *o = jl_array_data_owner(a);
         if (jl_is_string(o)) {
+#ifdef MMTKHEAP
+            // since we need the size of the string to be accurate according to its allocation size, we simply allocate a new string here
+            // instead of changing its size to len as in `*(size_t*)o = len`
+            o = jl_gc_realloc_string(o, len);
+            jl_value_t** owner_addr = (a + jl_array_data_owner_offset(jl_array_ndims(a)));
+            owner_addr = o;
+#endif
             a->flags.isshared = 1;
             *(size_t*)o = len;
             a->nrows = 0;
@@ -497,15 +516,17 @@ JL_DLLEXPORT jl_value_t *jl_alloc_string(size_t len)
     jl_ptls_t ptls = ct->ptls;
     const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
     if (sz <= GC_MAX_SZCLASS) {
+#ifndef MMTKHEAP
         int pool_id = jl_gc_szclass_align8(allocsz);
         jl_gc_pool_t *p = &ptls->heap.norm_pools[pool_id];
         int osize = jl_gc_sizeclasses[pool_id];
-#ifndef MMTKHEAP
         // We call `jl_gc_pool_alloc_noinline` instead of `jl_gc_pool_alloc` to avoid double-counting in
         // the Allocations Profiler. (See https://github.com/JuliaLang/julia/pull/43868 for more details.)
         s = jl_gc_pool_alloc_noinline(ptls, (char*)p - (char*)ptls, osize);
 #else
-        s = jl_mmtk_gc_alloc_default(ptls, pool_id, osize);
+        int pool_id = jl_gc_szclass_align8(allocsz);
+        int osize = jl_gc_sizeclasses[pool_id];
+        s = jl_mmtk_gc_alloc_default(ptls, 0, osize, jl_string_type);
 #endif
     }
     else {

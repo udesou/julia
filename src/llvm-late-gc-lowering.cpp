@@ -2306,16 +2306,46 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 // Create a call to the `julia.gc_alloc_bytes` intrinsic, which is like
                 // `julia.gc_alloc_obj` except it doesn't set the tag.
                 auto allocBytesIntrinsic = getOrDeclare(jl_intrinsics::GCAllocBytes);
+#ifdef MMTKHEAP
+                
+                // LLVM alignment/bit check is not happy about addrspacecast and refuse
+                // to remove write barrier because of it.
+                // We pretty much only load using `T_size` so try our best to strip
+                // as many cast as possible.
+                auto tag_arg = CI->getArgOperand(2)->stripPointerCastsAndAliases();
+                if (auto C = dyn_cast<ConstantExpr>(tag_arg)) {
+                    if (C->getOpcode() == Instruction::IntToPtr) {
+                        tag_arg = C->getOperand(0);
+                    }
+                }
+                else if (auto LI = dyn_cast<LoadInst>(tag_arg)) {
+                    tag_arg = builder.CreatePtrToInt(tag_arg, Type::getInt64Ty(builder.getContext()));
+                } 
+                
+                auto tag_arg_type = tag_arg->getType();
+                if (tag_arg_type->isPointerTy()) {
+                    tag_arg = builder.CreatePtrToInt(tag_arg, Type::getInt64Ty(builder.getContext()));
+                }
+#endif
                 auto ptlsLoad = get_current_ptls_from_task(builder, CI->getArgOperand(0), tbaa_gcframe);
                 auto ptls = builder.CreateBitCast(ptlsLoad, Type::getInt8PtrTy(builder.getContext()));
                 auto newI = builder.CreateCall(
                     allocBytesIntrinsic,
                     {
+#ifndef MMTKHEAP
                         ptls,
                         builder.CreateIntCast(
                             CI->getArgOperand(1),
                             allocBytesIntrinsic->getFunctionType()->getParamType(1),
                             false)
+#else
+                        ptls,
+                        builder.CreateIntCast(
+                            CI->getArgOperand(1),
+                            allocBytesIntrinsic->getFunctionType()->getParamType(1),
+                            false),
+                        tag_arg
+#endif
                     });
                 newI->takeName(CI);
 

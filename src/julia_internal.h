@@ -286,7 +286,8 @@ jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
 #ifdef MMTKHEAP
-JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize);
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
+JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default_array(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
 JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
 #endif
 JL_DLLEXPORT int jl_gc_classify_pools(size_t sz, int *osize);
@@ -412,15 +413,49 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     jl_value_t *v;
     const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
     if (sz <= GC_MAX_SZCLASS) {
+#ifndef MMTKHEAP
         int pool_id = jl_gc_szclass(allocsz);
         jl_gc_pool_t *p = &ptls->heap.norm_pools[pool_id];
         int osize = jl_gc_sizeclasses[pool_id];
-#ifndef MMTKHEAP
         // We call `jl_gc_pool_alloc_noinline` instead of `jl_gc_pool_alloc` to avoid double-counting in
         // the Allocations Profiler. (See https://github.com/JuliaLang/julia/pull/43868 for more details.)
         v = jl_gc_pool_alloc_noinline(ptls, (char*)p - (char*)ptls, osize);
 #else
-        v = jl_mmtk_gc_alloc_default(ptls, pool_id, osize);
+        int pool_id = jl_gc_szclass(allocsz);
+        int osize = jl_gc_sizeclasses[pool_id];
+        v = jl_mmtk_gc_alloc_default(ptls, 0, osize, ty);
+#endif
+    }
+    else {
+        if (allocsz < sz) // overflow in adding offs, size was "negative"
+            jl_throw(jl_memory_exception);
+#ifndef MMTKHEAP
+        v = jl_gc_big_alloc_noinline(ptls, allocsz);
+#else
+        v = jl_mmtk_gc_alloc_big(ptls, allocsz);
+#endif
+    }
+    jl_set_typeof(v, ty);
+    maybe_record_alloc_to_profile(v, sz, (jl_datatype_t*)ty);
+    return v;
+}
+
+STATIC_INLINE jl_value_t *jl_gc_alloc_array_(jl_ptls_t ptls, size_t sz, void *ty)
+{
+    jl_value_t *v;
+    const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+    if (sz <= GC_MAX_SZCLASS) {
+#ifndef MMTKHEAP
+        int pool_id = jl_gc_szclass(allocsz);
+        jl_gc_pool_t *p = &ptls->heap.norm_pools[pool_id];
+        int osize = jl_gc_sizeclasses[pool_id];
+        // We call `jl_gc_pool_alloc_noinline` instead of `jl_gc_pool_alloc` to avoid double-counting in
+        // the Allocations Profiler. (See https://github.com/JuliaLang/julia/pull/43868 for more details.)
+        v = jl_gc_pool_alloc_noinline(ptls, (char*)p - (char*)ptls, osize);
+#else
+        int pool_id = jl_gc_szclass(allocsz);
+        int osize = jl_gc_sizeclasses[pool_id];
+        v = jl_mmtk_gc_alloc_default_array(ptls, 0, osize, ty);
 #endif
     }
     else {
@@ -452,6 +487,23 @@ JL_DLLEXPORT jl_value_t *jl_gc_alloc(jl_ptls_t ptls, size_t sz, void *ty);
      (jl_gc_alloc)(ptls, sz, ty))
 #else
 #  define jl_gc_alloc(ptls, sz, ty) jl_gc_alloc_(ptls, sz, ty)
+#endif
+
+/* Programming style note: When using jl_gc_alloc, do not JL_GC_PUSH it into a
+ * gc frame, until it has been fully initialized. An uninitialized value in a
+ * gc frame can crash upon encountering the first safepoint. By delaying use of
+ * the JL_GC_PUSH macro until the value has been initialized, any accidental
+ * safepoints will be caught by the GC analyzer.
+ */
+JL_DLLEXPORT jl_value_t *jl_gc_alloc_array(jl_ptls_t ptls, size_t sz, void *ty);
+// On GCC, only inline when sz is constant
+#ifdef __GNUC__
+#  define jl_gc_alloc_array(ptls, sz, ty)  \
+    (__builtin_constant_p(sz) ?      \
+     jl_gc_alloc_array_(ptls, sz, ty) :    \
+     (jl_gc_alloc_array)(ptls, sz, ty))
+#else
+#  define jl_gc_alloc_array(ptls, sz, ty) jl_gc_alloc_array_(ptls, sz, ty)
 #endif
 
 // jl_buff_tag must be a multiple of GC_PAGE_SZ so that it can't be

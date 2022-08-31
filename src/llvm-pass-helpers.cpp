@@ -145,10 +145,18 @@ namespace jl_intrinsics {
             auto intrinsic = Function::Create(
                 FunctionType::get(
                     context.T_prjlvalue,
+#ifndef MMTKHEAP
                     { Type::getInt8PtrTy(context.getLLVMContext()),
                         sizeof(size_t) == sizeof(uint32_t) ?
                         Type::getInt32Ty(context.getLLVMContext()) :
                         Type::getInt64Ty(context.getLLVMContext()) },
+#else
+                    { Type::getInt8PtrTy(context.getLLVMContext()),
+                        sizeof(size_t) == sizeof(uint32_t) ?
+                        Type::getInt32Ty(context.getLLVMContext()) :
+                        Type::getInt64Ty(context.getLLVMContext()),
+                        Type::getInt64Ty(context.getLLVMContext()), },
+#endif
                     false),
                 Function::ExternalLinkage,
                 GC_ALLOC_BYTES_NAME);
@@ -261,7 +269,8 @@ namespace jl_well_known {
 #ifndef MMTKHEAP
                     { Type::getInt8PtrTy(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()) },
 #else
-                    { Type::getInt32Ty(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()) },
+                    { Type::getInt8PtrTy(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()),
+                        Type::getInt64Ty(context.getLLVMContext()) },
 #endif
                     false),
                 Function::ExternalLinkage,
