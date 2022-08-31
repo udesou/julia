@@ -720,11 +720,23 @@ static int NOINLINE array_resize_buffer(jl_array_t *a, size_t newlen)
         if (nbytes >= MALLOC_THRESH) {
             a->data = jl_gc_managed_malloc(nbytes);
             jl_gc_track_malloced_array(ct->ptls, a);
+            // if (a->flags.how != 2) {
+                // printf("obj's %p old flag = %d\n", a, a->flags.how);
+            //     fflush(stdout);
+            // }
             a->flags.how = 2;
             a->flags.isaligned = 1;
         }
         else {
             a->data = jl_gc_alloc_buf(ct->ptls, nbytes);
+            // if (a->flags.how != 1) {
+                // FILE *fp;
+                // fp = fopen("/home/eduardo/mmtk-julia/resizebuffer.log", "a");
+                // fprintf(fp, "obj's %p old flag = %d\n", a, a->flags.how);
+                // fflush(fp);
+                // fclose(fp);
+                // fflush(stdout);
+            // }
             a->flags.how = 1;
             jl_gc_wb_buf(a, a->data, nbytes);
         }

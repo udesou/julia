@@ -2307,7 +2307,6 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 // `julia.gc_alloc_obj` except it doesn't set the tag.
                 auto allocBytesIntrinsic = getOrDeclare(jl_intrinsics::GCAllocBytes);
 #ifdef MMTKHEAP
-                
                 // LLVM alignment/bit check is not happy about addrspacecast and refuse
                 // to remove write barrier because of it.
                 // We pretty much only load using `T_size` so try our best to strip
@@ -2320,8 +2319,7 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 }
                 else if (auto LI = dyn_cast<LoadInst>(tag_arg)) {
                     tag_arg = builder.CreatePtrToInt(tag_arg, Type::getInt64Ty(builder.getContext()));
-                } 
-                
+                }
                 auto tag_arg_type = tag_arg->getType();
                 if (tag_arg_type->isPointerTy()) {
                     tag_arg = builder.CreatePtrToInt(tag_arg, Type::getInt64Ty(builder.getContext()));
