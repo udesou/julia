@@ -359,7 +359,6 @@ JL_DLLEXPORT jl_array_t *jl_ptr_to_array_1d(jl_value_t *atype, void *data,
         jl_gc_count_allocd(nel*elsz + (elsz == 1 ? 1 : 0));
     }
     else {
-        // printf("Previous flag = %d")
         a->flags.how = 0;
     }
 
