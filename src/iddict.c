@@ -32,6 +32,12 @@ JL_DLLEXPORT jl_array_t *jl_idtable_rehash(jl_array_t *a, size_t newsz)
 
 static inline int jl_table_assign_bp(jl_array_t **pa, jl_value_t *key, jl_value_t *val)
 {
+    if(object_is_managed_by_mmtk(key)) {
+        mmtk_pin_object(key);
+    }
+    if(object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
     // pa points to a **un**rooted address
     uint_t hv;
     jl_array_t *a = *pa;
@@ -144,6 +150,12 @@ inline _Atomic(jl_value_t*) *jl_table_peek_bp(jl_array_t *a, jl_value_t *key) JL
 JL_DLLEXPORT
 jl_array_t *jl_eqtable_put(jl_array_t *h, jl_value_t *key, jl_value_t *val, int *p_inserted)
 {
+    if(object_is_managed_by_mmtk(key)) {
+        mmtk_pin_object(key);
+    }
+    if(object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
     int inserted = jl_table_assign_bp(&h, key, val);
     if (p_inserted)
         *p_inserted = inserted;

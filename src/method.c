@@ -436,6 +436,7 @@ JL_DLLEXPORT jl_method_instance_t *jl_new_method_instance_uninit(void)
     jl_method_instance_t *li =
         (jl_method_instance_t*)jl_gc_alloc(ct->ptls, sizeof(jl_method_instance_t),
                                            jl_method_instance_type);
+    mmtk_pin_object(li);
     li->def.value = NULL;
     li->specTypes = NULL;
     li->sparam_vals = jl_emptysvec;
@@ -454,6 +455,7 @@ JL_DLLEXPORT jl_code_info_t *jl_new_code_info_uninit(void)
     jl_code_info_t *src =
         (jl_code_info_t*)jl_gc_alloc(ct->ptls, sizeof(jl_code_info_t),
                                        jl_code_info_type);
+    mmtk_pin_object(src);
     src->code = NULL;
     src->codelocs = NULL;
     src->ssavaluetypes = NULL;
@@ -753,6 +755,7 @@ JL_DLLEXPORT jl_method_t *jl_new_method_uninit(jl_module_t *module)
     jl_task_t *ct = jl_current_task;
     jl_method_t *m =
         (jl_method_t*)jl_gc_alloc(ct->ptls, sizeof(jl_method_t), jl_method_type);
+    mmtk_pin_object(m);
     jl_atomic_store_relaxed(&m->specializations, jl_emptysvec);
     jl_atomic_store_relaxed(&m->speckeyset, (jl_array_t*)jl_an_empty_vec_any);
     m->sig = NULL;
@@ -1096,6 +1099,9 @@ static void prepare_method_for_roots(jl_method_t *m, uint64_t modid)
 // Add a single root with owner `mod` to a method
 JL_DLLEXPORT void jl_add_method_root(jl_method_t *m, jl_module_t *mod, jl_value_t* root)
 {
+    if (object_is_managed_by_mmtk(root)) {
+        mmtk_pin_object(root);
+    }
     JL_GC_PUSH2(&m, &root);
     uint64_t modid = 0;
     if (mod) {
@@ -1118,6 +1124,14 @@ void jl_append_method_roots(jl_method_t *m, uint64_t modid, jl_array_t* roots)
     assert(jl_is_array(roots));
     prepare_method_for_roots(m, modid);
     add_root_block(m->root_blocks, modid, jl_array_len(m->roots));
+    size_t n2 = jl_array_nrows(roots);
+    for (int i = 0; i < n2; i++) {
+        jl_value_t* root = jl_array_ptr_ref(roots, i);
+        if (object_is_managed_by_mmtk(root)) {
+            mmtk_pin_object(root);
+        }
+    }
+
     jl_array_ptr_1d_append(m->roots, roots);
     JL_GC_POP();
 }

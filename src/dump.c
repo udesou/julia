@@ -1867,6 +1867,7 @@ static jl_value_t *jl_deserialize_value_method_instance(jl_serializer_state *s, 
     jl_method_instance_t *mi =
         (jl_method_instance_t*)jl_gc_alloc(s->ptls, sizeof(jl_method_instance_t),
                                        jl_method_instance_type);
+    mmtk_pin_object(mi);
     memset(mi, 0, sizeof(jl_method_instance_t));
     uintptr_t pos = backref_list.len;
     arraylist_push(&backref_list, mi);

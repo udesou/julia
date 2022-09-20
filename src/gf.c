@@ -405,6 +405,7 @@ JL_DLLEXPORT jl_code_instance_t *jl_new_codeinst(
     assert(min_world <= max_world && "attempting to set invalid world constraints");
     jl_code_instance_t *codeinst = (jl_code_instance_t*)jl_gc_alloc(ct->ptls, sizeof(jl_code_instance_t),
             jl_code_instance_type);
+    mmtk_pin_object(codeinst);
     codeinst->def = mi;
     codeinst->min_world = min_world;
     codeinst->max_world = max_world;
@@ -433,6 +434,9 @@ JL_DLLEXPORT jl_code_instance_t *jl_new_codeinst(
 JL_DLLEXPORT void jl_mi_cache_insert(jl_method_instance_t *mi JL_ROOTING_ARGUMENT,
                                      jl_code_instance_t *ci JL_ROOTED_ARGUMENT JL_MAYBE_UNROOTED)
 {
+    if(object_is_managed_by_mmtk(ci)) {
+        mmtk_pin_object(ci);
+    }
     JL_GC_PUSH1(&ci);
     if (jl_is_method(mi->def.method))
         JL_LOCK(&mi->def.method->writelock);
@@ -1241,7 +1245,11 @@ static jl_method_match_t *_gf_invoke_lookup(jl_value_t *types JL_PROPAGATES_ROOT
 static jl_method_instance_t *jl_mt_assoc_by_type(jl_methtable_t *mt JL_PROPAGATES_ROOT, jl_datatype_t *tt, size_t world)
 {
     // caller must hold the mt->writelock
-    assert(tt->isdispatchtuple || tt->hasfreetypevars);
+    if(!(tt->isdispatchtuple || tt->hasfreetypevars)) {
+        printf("ASSERTION FAILED HERE!\n");
+        fflush(stdout);
+        assert(0);
+    }
     if (tt->isdispatchtuple) {
         jl_array_t *leafcache = jl_atomic_load_relaxed(&mt->leafcache);
         jl_typemap_entry_t *entry = lookup_leafcache(leafcache, (jl_value_t*)tt, world);
@@ -2497,18 +2505,25 @@ STATIC_INLINE jl_method_instance_t *jl_lookup_generic_(jl_value_t *F, jl_value_t
     i = 4;
     jl_tupletype_t *tt = NULL;
     int64_t last_alloc;
+    char* addr_def = getenv("JL_FUNCTION_ADDR");
+    long addr_fn = 0;
+    if (addr_def != NULL) {
+        long addr_fn = atol(addr_def);
+    }
     if (i == 4) {
         // if no method was found in the associative cache, check the full cache
         JL_TIMING(METHOD_LOOKUP_FAST);
         mt = jl_gf_mtable(F);
+
         jl_array_t *leafcache = jl_atomic_load_relaxed(&mt->leafcache);
         entry = NULL;
         if (leafcache != (jl_array_t*)jl_an_empty_vec_any &&
                 jl_typeis(jl_atomic_load_relaxed(&mt->cache), jl_typemap_level_type)) {
             // hashing args is expensive, but looking at mt->cache is probably even more expensive
             tt = lookup_arg_type_tuple(F, args, nargs);
-            if (tt != NULL)
+            if (tt != NULL) {
                 entry = lookup_leafcache(leafcache, (jl_value_t*)tt, world);
+            }
         }
         if (entry == NULL) {
             jl_typemap_t *cache = jl_atomic_load_relaxed(&mt->cache); // XXX: gc root required?

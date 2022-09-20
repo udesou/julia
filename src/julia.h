@@ -967,7 +967,10 @@ STATIC_INLINE jl_value_t *jl_svecset(
 #else
 STATIC_INLINE jl_value_t *jl_svecref(void *t JL_PROPAGATES_ROOT, size_t i) JL_NOTSAFEPOINT
 {
-    assert(jl_typeis(t,jl_simplevector_type));
+    if(!jl_typeis(t,jl_simplevector_type)) {
+        printf("ASSERTION FAILED HERE\n");
+        fflush(stdout);
+    }
     assert(i < jl_svec_len(t));
     // while svec is supposedly immutable, in practice we sometimes publish it first
     // and set the values lazily

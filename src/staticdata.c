@@ -502,6 +502,7 @@ static void jl_serialize_value_(jl_serializer_state *s, jl_value_t *v, int recur
     else if (jl_typeis(v, jl_uint8_type)) {
         return;
     }
+
     arraylist_push(&object_worklist, (void*)((uintptr_t)v | recursive));
 }
 

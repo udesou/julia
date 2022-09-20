@@ -272,6 +272,12 @@ static void mtcache_hash_insert(_Atomic(jl_array_t*) *cache, jl_value_t *parent,
 {
     int inserted = 0;
     jl_array_t *a = jl_atomic_load_relaxed(cache);
+    if (object_is_managed_by_mmtk(key)) {
+        mmtk_pin_object(key);
+    }
+    if (object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
     if (a == (jl_array_t*)jl_an_empty_vec_any) {
         a = jl_alloc_vec_any(16);
         jl_atomic_store_release(cache, a);
@@ -1274,6 +1280,7 @@ jl_typemap_entry_t *jl_typemap_alloc(
     jl_typemap_entry_t *newrec =
         (jl_typemap_entry_t*)jl_gc_alloc(ct->ptls, sizeof(jl_typemap_entry_t),
                                          jl_typemap_entry_type);
+    mmtk_pin_object(newrec);
     newrec->sig = type;
     newrec->simplesig = simpletype;
     newrec->func.value = newvalue;

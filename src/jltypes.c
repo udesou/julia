@@ -766,6 +766,9 @@ static jl_value_t *lookup_typevalue(jl_typename_t *tn, jl_value_t *key1, jl_valu
 
 static int cache_insert_type_set_(jl_svec_t *a, jl_datatype_t *val, uint_t hv, int atomic)
 {
+    if(object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
     _Atomic(jl_value_t*) *tab = (_Atomic(jl_value_t*)*)jl_svec_data(a);
     size_t sz = jl_svec_len(a);
     if (sz <= 1)
@@ -797,6 +800,12 @@ static jl_svec_t *cache_rehash_set(jl_svec_t *a, size_t newsz);
 static void cache_insert_type_set(jl_datatype_t *val, uint_t hv)
 {
     jl_svec_t *a = jl_atomic_load_relaxed(&val->name->cache);
+    if(object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
+    if(object_is_managed_by_mmtk(a)) {
+        mmtk_pin_object(a);
+    }
     while (1) {
         JL_GC_PROMISE_ROOTED(a);
         if (cache_insert_type_set_(a, val, hv, 1))
@@ -1183,6 +1192,9 @@ static unsigned typekey_hash(jl_typename_t *tn, jl_value_t **key, size_t n, int 
     int failed = nofail;
     for (j = 0; j < n; j++) {
         hash = bitmix(type_hash(key[j], &failed), hash);
+        if (object_is_managed_by_mmtk(key[j])) {
+            mmtk_pin_object(key[j]);
+        }
         if (failed && !nofail)
             return 0;
     }

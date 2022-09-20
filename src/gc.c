@@ -3009,10 +3009,10 @@ JL_DLLEXPORT int jl_gc_enable(int on)
         if (jl_atomic_fetch_add(&jl_gc_disable_counter, -1) == 1) {
             gc_num.allocd += gc_num.deferred_alloc;
             gc_num.deferred_alloc = 0;
-        }
 #ifdef MMTKHEAP
         enable_collection();
 #endif
+        }
     }
     else if (prev && !on) {
 #ifdef MMTKHEAP
