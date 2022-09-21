@@ -626,6 +626,7 @@ JL_DLLEXPORT jl_code_info_t *jl_copy_code_info(jl_code_info_t *src)
     jl_code_info_t *newsrc =
         (jl_code_info_t*)jl_gc_alloc(ct->ptls, sizeof(jl_code_info_t),
                                        jl_code_info_type);
+    mmtk_pin_object(newsrc);
     *newsrc = *src;
     return newsrc;
 }

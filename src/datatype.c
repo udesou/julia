@@ -1162,6 +1162,7 @@ BOX_FUNC(float64, double, jl_box, 2)
             return boxed_##typ##_cache[idx];                            \
         jl_value_t *v = jl_gc_alloc(ct->ptls, nw * sizeof(void*),       \
                                     jl_##typ##_type);                   \
+        mmtk_pin_object(v);                                             \
         *(c_type*)jl_data_ptr(v) = x;                                   \
         return v;                                                       \
     }
@@ -1174,6 +1175,7 @@ BOX_FUNC(float64, double, jl_box, 2)
             return boxed_##typ##_cache[x];                              \
         jl_value_t *v = jl_gc_alloc(ct->ptls, nw * sizeof(void*),       \
                                     jl_##typ##_type);                   \
+        mmtk_pin_object(v);                                             \
         *(c_type*)jl_data_ptr(v) = x;                                   \
         return v;                                                       \
     }

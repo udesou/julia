@@ -1767,6 +1767,7 @@ static jl_value_t *jl_deserialize_value_method(jl_serializer_state *s, jl_value_
     jl_method_t *m =
         (jl_method_t*)jl_gc_alloc(s->ptls, sizeof(jl_method_t),
                                   jl_method_type);
+    mmtk_pin_object(m);
     memset(m, 0, sizeof(jl_method_t));
     uintptr_t pos = backref_list.len;
     arraylist_push(&backref_list, m);
@@ -2007,6 +2008,7 @@ static jl_value_t *jl_deserialize_value_module(jl_serializer_state *s) JL_GC_DIS
 static jl_value_t *jl_deserialize_value_singleton(jl_serializer_state *s, jl_value_t **loc) JL_GC_DISABLED
 {
     jl_value_t *v = (jl_value_t*)jl_gc_alloc(s->ptls, 0, NULL);
+    mmtk_pin_object(v);
     uintptr_t pos = backref_list.len;
     arraylist_push(&backref_list, (void*)v);
     // TODO: optimize the case where the value can easily be obtained
@@ -2940,6 +2942,9 @@ static void jl_recache_types(void) JL_GC_DISABLED
         jl_value_t **loc = (jl_value_t**)flagref_list.items[i + 0];
         int offs = (int)(intptr_t)flagref_list.items[i + 1];
         jl_value_t *o = loc ? *loc : (jl_value_t*)backref_list.items[offs];
+        if ((size_t) o % sizeof(jl_taggedvalue_t) != 0) {
+            o = (jl_value_t*)((size_t) o - (size_t) o % sizeof(jl_taggedvalue_t));
+        }
         if (!jl_is_method(o) && !jl_is_method_instance(o)) {
             jl_datatype_t *dt;
             jl_value_t *v;

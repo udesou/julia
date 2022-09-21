@@ -17,6 +17,7 @@ JL_DLLEXPORT jl_module_t *jl_new_module_(jl_sym_t *name, uint8_t default_names)
     const jl_uuid_t uuid_zero = {0, 0};
     jl_module_t *m = (jl_module_t*)jl_gc_alloc(ct->ptls, sizeof(jl_module_t),
                                                jl_module_type);
+    mmtk_pin_object(m);
     assert(jl_is_symbol(name));
     m->name = name;
     m->parent = NULL;
