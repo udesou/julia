@@ -1208,6 +1208,9 @@ static unsigned typekeyvalue_hash(jl_typename_t *tn, jl_value_t *key1, jl_value_
     unsigned hash = 3;
     for (j = 0; j < n; j++) {
         jl_value_t *kj = j == 0 ? key1 : key[j - 1];
+        if (object_is_managed_by_mmtk(kj)) {
+            mmtk_pin_object(kj);
+        }
         uint_t hj;
         if (leaf && jl_is_kind(jl_typeof(kj))) {
             hj = typekey_hash(jl_type_typename, &kj, 1, 0);
