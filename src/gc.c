@@ -3590,7 +3590,7 @@ void jl_gc_init(void)
         double size = strtod(size_gb, &p);
         heap_size = (long) 1024 * 1024 * 1024 * size;
     } else {
-        heap_size = uv_get_free_memory() > 1024 * 1024 * 1024 * (long) 8 ? 1024 * 1024 * 1024 * (long) 8 : uv_get_free_memory() / 10 * 70;
+        heap_size = uv_get_free_memory() > 1024 * 1024 * 1024 * (long) 8 ? 1024 * 1024 * 1024 * (long) 8 : uv_get_free_memory() / 10 * 7;
     }
 
     gc_init(heap_size, &mmtk_upcalls, (sizeof(jl_taggedvalue_t))); // currently set as 6GB or 70% the free memory in the system
