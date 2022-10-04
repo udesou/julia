@@ -421,6 +421,12 @@ static uintptr_t NOINLINE jl_object_id__cold(jl_datatype_t *dt, jl_value_t *v) J
 
 JL_DLLEXPORT inline uintptr_t jl_object_id_(jl_value_t *tv, jl_value_t *v) JL_NOTSAFEPOINT
 {
+    if(object_is_managed_by_mmtk(tv)) {
+        mmtk_pin_object(tv);
+    }
+    if(object_is_managed_by_mmtk(v)) {
+        mmtk_pin_object(v);
+    }
     jl_datatype_t *dt = (jl_datatype_t*)tv;
     if (dt == jl_symbol_type)
         return ((jl_sym_t*)v)->hash;
