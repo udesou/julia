@@ -175,6 +175,7 @@ static jl_binding_t *new_binding(jl_sym_t *name)
 JL_DLLEXPORT jl_binding_t *jl_get_binding_wr(jl_module_t *m JL_PROPAGATES_ROOT, jl_sym_t *var, int alloc)
 {
     JL_LOCK(&m->lock);
+    PTRHASH_PIN(var)
     jl_binding_t **bp = (jl_binding_t**)ptrhash_bp(&m->bindings, var);
     jl_binding_t *b = *bp;
 
@@ -232,6 +233,7 @@ JL_DLLEXPORT jl_module_t *jl_get_module_of_binding(jl_module_t *m, jl_sym_t *var
 JL_DLLEXPORT jl_binding_t *jl_get_binding_for_method_def(jl_module_t *m, jl_sym_t *var)
 {
     JL_LOCK(&m->lock);
+    PTRHASH_PIN(var)
     jl_binding_t **bp = (jl_binding_t**)ptrhash_bp(&m->bindings, var);
     jl_binding_t *b = *bp;
     JL_GC_PROMISE_ROOTED(b);
@@ -476,6 +478,7 @@ static void module_import_(jl_module_t *to, jl_module_t *from, jl_sym_t *s, jl_s
         }
 
         JL_LOCK(&to->lock);
+        PTRHASH_PIN(asname)
         jl_binding_t **bp = (jl_binding_t**)ptrhash_bp(&to->bindings, asname);
         jl_binding_t *bto = *bp;
         if (bto != HT_NOTFOUND) {
@@ -586,6 +589,7 @@ JL_DLLEXPORT void jl_module_using(jl_module_t *to, jl_module_t *from)
             jl_binding_t *b = (jl_binding_t*)table[i];
             if (b->exportp && (b->owner==from || b->imported)) {
                 jl_sym_t *var = (jl_sym_t*)table[i-1];
+                PTRHASH_PIN(var)
                 jl_binding_t **tobp = (jl_binding_t**)ptrhash_bp(&to->bindings, var);
                 if (*tobp != HT_NOTFOUND && (*tobp)->owner != NULL &&
                     // don't warn for conflicts with the module name itself.
@@ -611,6 +615,7 @@ JL_DLLEXPORT void jl_module_using(jl_module_t *to, jl_module_t *from)
 JL_DLLEXPORT void jl_module_export(jl_module_t *from, jl_sym_t *s)
 {
     JL_LOCK(&from->lock);
+    PTRHASH_PIN(s)
     jl_binding_t **bp = (jl_binding_t**)ptrhash_bp(&from->bindings, s);
     if (*bp == HT_NOTFOUND) {
         jl_binding_t *b = new_binding(s);

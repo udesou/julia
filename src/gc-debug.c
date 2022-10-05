@@ -635,11 +635,13 @@ void objprofile_count(void *ty, int old, int sz)
              ((jl_datatype_t*)ty)->instance) {
         ty = jl_singleton_tag;
     }
+    PTRHASH_PIN(ty)
     void **bp = ptrhash_bp(&obj_counts[old], ty);
     if (*bp == HT_NOTFOUND)
         *bp = (void*)2;
     else
         (*((intptr_t*)bp))++;
+    PTRHASH_PIN(ty)
     bp = ptrhash_bp(&obj_sizes[old], ty);
     if (*bp == HT_NOTFOUND)
         *bp = (void*)(intptr_t)(1 + sz);

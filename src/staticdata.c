@@ -430,6 +430,7 @@ static void jl_load_sysimg_so(void)
 
 static uintptr_t jl_fptr_id(void *fptr)
 {
+    PTRHASH_PIN(fptr)
     void **pbp = ptrhash_bp(&fptr_to_id, fptr);
     if (*pbp == HT_NOTFOUND || fptr == NULL)
         return 0;
@@ -507,6 +508,7 @@ static void jl_serialize_value_(jl_serializer_state *s, jl_value_t *v, int recur
 
 static void jl_serialize_value__(jl_serializer_state *s, jl_value_t *v, int recursive)
 {
+    PTRHASH_PIN(v)
     void **bp = ptrhash_bp(&backref_table, v);
     if (*bp != HT_NOTFOUND) {
         return;
@@ -659,6 +661,7 @@ static uintptr_t _backref_id(jl_serializer_state *s, jl_value_t *v) JL_NOTSAFEPO
     assert(v != NULL && "cannot get backref to NULL object");
     void *idx = HT_NOTFOUND;
     if (jl_is_symbol(v)) {
+        PTRHASH_PIN(v)
         void **pidx = ptrhash_bp(&symbol_table, v);
         idx = *pidx;
         if (idx == HT_NOTFOUND) {
@@ -1575,6 +1578,8 @@ static void jl_reinit_item(jl_value_t *v, int how) JL_GC_DISABLED
             } *b;
             b = (struct binding*)&mod[1];
             while (nbindings > 0) {
+                PTRHASH_PIN(b->asname)
+                PTRHASH_PIN(&b->b)
                 ptrhash_put(&mod->bindings, b->asname, &b->b);
                 b += 1;
                 nbindings -= 1;
@@ -1699,6 +1704,8 @@ static jl_value_t *strip_codeinfo_meta(jl_method_t *m, jl_value_t *ci_, int orig
 
 static void record_field_change(jl_value_t **addr, jl_value_t *newval)
 {
+    PTRHASH_PIN(addr)
+    PTRHASH_PIN(newval)
     ptrhash_put(&field_replace, (void*)addr, newval);
 }
 
@@ -2250,6 +2257,7 @@ static void jl_init_serializer2(int for_serialize)
         htable_new(&backref_table, 0);
         uintptr_t i;
         for (i = 0; id_to_fptrs[i] != NULL; i++) {
+            PTRHASH_PIN(id_to_fptrs[i])
             ptrhash_put(&fptr_to_id, (void*)(uintptr_t)id_to_fptrs[i], (void*)(i + 2));
         }
     }

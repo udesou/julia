@@ -300,6 +300,12 @@ typedef struct _varidx {
 
 static uintptr_t type_object_id_(jl_value_t *v, jl_varidx_t *env) JL_NOTSAFEPOINT
 {
+    if(object_is_managed_by_mmtk(v)) {
+        mmtk_pin_object(v);
+    }
+    if(object_is_managed_by_mmtk(env)) {
+        mmtk_pin_object(env);
+    }
     if (v == NULL)
         return 0;
     jl_datatype_t *tv = (jl_datatype_t*)jl_typeof(v);
@@ -414,8 +420,12 @@ static uintptr_t NOINLINE jl_object_id__cold(jl_datatype_t *dt, jl_value_t *v) J
         return memhash32_seed(jl_string_data(v), jl_string_len(v), 0xedc3b677);
 #endif
     }
-    if (dt->name->mutabl)
+    if (dt->name->mutabl) {
+        if (object_is_managed_by_mmtk(v)) {
+            mmtk_pin_object(v);
+        }
         return inthash((uintptr_t)v);
+    }
     return immut_id_(dt, v, dt->hash);
 }
 

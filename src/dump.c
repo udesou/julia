@@ -374,6 +374,7 @@ static size_t queue_external_mis(jl_array_t *list)
                     }
                     if (relocatable && ptrhash_get(&external_mis, mi) == HT_NOTFOUND) {
                         if (has_backedge_to_worklist(mi, &visited)) {
+                            PTRHASH_PIN(mi)
                             ptrhash_put(&external_mis, mi, mi);
                             n++;
                         }
@@ -645,6 +646,7 @@ static int jl_serialize_generic(jl_serializer_state *s, jl_value_t *v) JL_GC_DIS
             arraylist_push(&reinit_list, (void*)3);
         }
         pos <<= 1;
+        PTRHASH_PIN(v)
         ptrhash_put(&backref_table, v, (char*)HT_NOTFOUND + pos + 1);
     }
 
@@ -1281,6 +1283,7 @@ static void jl_collect_backedges_to(jl_method_instance_t *caller, htable_t *all_
         size_t i, l = jl_array_len(callees);
         for (i = 0; i < l; i++) {
             jl_value_t *c = jl_array_ptr_ref(callees, i);
+            PTRHASH_PIN(c)
             ptrhash_put(all_callees, c, c);
             if (jl_is_method_instance(c)) {
                 jl_collect_backedges_to((jl_method_instance_t*)c, all_callees);
@@ -1312,6 +1315,7 @@ static void jl_collect_backedges( /* edges */ jl_array_t *s, /* ext_targets */ j
             size_t i, l = jl_array_len(callees);
             for (i = 0; i < l; i++) {
                 jl_value_t *c = jl_array_ptr_ref(callees, i);
+                PTRHASH_PIN(c)
                 ptrhash_put(&all_callees, c, c);
                 if (jl_is_method_instance(c)) {
                     jl_collect_backedges_to((jl_method_instance_t*)c, &all_callees);
@@ -1350,6 +1354,8 @@ static void jl_collect_backedges( /* edges */ jl_array_t *s, /* ext_targets */ j
                         jl_array_ptr_1d_push(t, callee);
                         jl_array_ptr_1d_push(t, matches);
                         target = (char*)HT_NOTFOUND + jl_array_len(t) / 2;
+                        PTRHASH_PIN(callee)
+                        PTRHASH_PIN(target)
                         ptrhash_put(&all_targets, (void*)callee, target);
                     }
                     jl_array_grow_end(callees, 1);
@@ -1634,6 +1640,7 @@ static jl_value_t *jl_deserialize_datatype(jl_serializer_state *s, int pos, jl_v
         assert(pos > 0);
         arraylist_push(&flagref_list, loc == HT_NOTFOUND ? NULL : loc);
         arraylist_push(&flagref_list, (void*)(uintptr_t)pos);
+        PTRHASH_PIN(dt)
         ptrhash_put(&uniquing_table, dt, NULL);
     }
 
@@ -1806,6 +1813,8 @@ static jl_value_t *jl_deserialize_value_method(jl_serializer_state *s, jl_value_
             jl_svec_data(qmrval)[0] = (jl_value_t*)(uintptr_t)(key & ((((uint64_t)1) << 32) - 1));          // lo bits
             jl_svec_data(qmrval)[1] = (jl_value_t*)(uintptr_t)((key >> 32) & ((((uint64_t)1) << 32) - 1));  // hi bits
             jl_svec_data(qmrval)[2] = (jl_value_t*)newroots;
+            PTRHASH_PIN(m)
+            PTRHASH_PIN(qmrval)
             ptrhash_put(&queued_method_roots, m, qmrval);
         }
         return (jl_value_t*)m;
@@ -1934,6 +1943,7 @@ static jl_value_t *jl_deserialize_value_code_instance(jl_serializer_state *s, jl
     jl_gc_wb(codeinst, codeinst->next);
     if (validate) {
         codeinst->min_world = jl_atomic_load_acquire(&jl_world_counter);
+        PTRHASH_PIN(codeinst)
         ptrhash_put(&new_code_instance_validate, codeinst, (void*)(~(uintptr_t)HT_NOTFOUND));   // "HT_FOUND"
     }
     return (jl_value_t*)codeinst;
@@ -2333,6 +2343,8 @@ static void jl_insert_method_instances(jl_array_t *list)
     for (i = 0; i < l; i++) {
         jl_method_instance_t *mi = (jl_method_instance_t*)jl_array_ptr_ref(list, i);
         jl_method_instance_t *milive = jl_specializations_get_or_insert(mi);
+        PTRHASH_PIN(mi)
+        PTRHASH_PIN(milive)
         ptrhash_put(&uniquing_table, mi, milive);  // store the association for the 2nd pass
     }
     // We may need to fix up the backedges for the ones that didn't "go live"
@@ -2727,6 +2739,7 @@ JL_DLLEXPORT int jl_save_incremental(const char *fname, jl_array_t *worklist)
     htable_new(&edges_map, 0);
     htable_new(&backref_table, 5000);
     htable_new(&external_mis, newly_inferred ? jl_array_len(newly_inferred) : 0);
+    PTRHASH_PIN(jl_main_module)
     ptrhash_put(&backref_table, jl_main_module, (char*)HT_NOTFOUND + 1);
     backref_table_numel = 1;
     jl_idtable_type = jl_base_module ? jl_get_global(jl_base_module, jl_symbol("IdDict")) : NULL;
@@ -2865,6 +2878,7 @@ static jl_value_t *recache_type(jl_value_t *p) JL_GC_DISABLED
             size_t i, l = jl_svec_len(tt);
             for (i = 0; i < l; i++)
                 jl_svecset(tt, i, recache_type(jl_svecref(tt, i)));
+            PTRHASH_PIN(p)
             ptrhash_put(&uniquing_table, p, p); // ensures this algorithm isn't too exponential
         }
     }
@@ -2925,6 +2939,8 @@ static jl_datatype_t *recache_datatype(jl_datatype_t *dt) JL_GC_DISABLED
         assert(t->hash == dt->hash);
         assert(jl_invalid_types_equal(t, dt));
     }
+    PTRHASH_PIN(dt)
+    PTRHASH_PIN(t)
     ptrhash_put(&uniquing_table, dt, t);
     return t;
 }
@@ -3045,6 +3061,7 @@ static jl_value_t *jl_recache_other_(jl_value_t *o)
     if (jl_is_method(o)) {
         // lookup the real Method based on the placeholder sig
         newo = (jl_value_t*)jl_recache_method((jl_method_t*)o);
+        PTRHASH_PIN(newo)
         ptrhash_put(&uniquing_table, newo, newo);
     }
     else if (jl_is_method_instance(o)) {
@@ -3054,6 +3071,8 @@ static jl_value_t *jl_recache_other_(jl_value_t *o)
     else {
         abort();
     }
+    PTRHASH_PIN(o)
+    PTRHASH_PIN(newo)
     ptrhash_put(&uniquing_table, o, newo);
     return newo;
 }
@@ -3348,6 +3367,7 @@ void jl_init_serializer(void)
 
     i = 2;
     while (common_symbols[i-2] != NULL) {
+        PTRHASH_PIN(common_symbols[i-2])
         ptrhash_put(&common_symbol_tag, common_symbols[i-2], (void*)i);
         deser_symbols[i] = (jl_value_t*)common_symbols[i-2];
         i += 1;

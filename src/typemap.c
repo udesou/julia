@@ -274,6 +274,7 @@ static void mtcache_hash_insert(_Atomic(jl_array_t*) *cache, jl_value_t *parent,
     jl_array_t *a = jl_atomic_load_relaxed(cache);
     if (a == (jl_array_t*)jl_an_empty_vec_any) {
         a = jl_alloc_vec_any(16);
+        mmtk_pin_object(a);
         jl_atomic_store_release(cache, a);
         jl_gc_wb(parent, a);
     }

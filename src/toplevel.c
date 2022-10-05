@@ -138,6 +138,7 @@ static jl_value_t *jl_eval_module_expr(jl_module_t *parent_module, jl_expr_t *ex
     jl_value_t *form = (jl_value_t*)newm;
     JL_GC_PUSH1(&form);
     JL_LOCK(&jl_modules_mutex);
+    PTRHASH_PIN(newm)
     ptrhash_put(&jl_current_modules, (void*)newm, (void*)((uintptr_t)HT_NOTFOUND + 1));
     JL_UNLOCK(&jl_modules_mutex);
 
@@ -170,6 +171,7 @@ static jl_value_t *jl_eval_module_expr(jl_module_t *parent_module, jl_expr_t *ex
         if (old != NULL) {
             // create a hidden gc root for the old module
             JL_LOCK(&jl_modules_mutex);
+            PTRHASH_PIN(old)
             uintptr_t *refcnt = (uintptr_t*)ptrhash_bp(&jl_current_modules, (void*)old);
             *refcnt += 1;
             JL_UNLOCK(&jl_modules_mutex);
@@ -227,6 +229,7 @@ static jl_value_t *jl_eval_module_expr(jl_module_t *parent_module, jl_expr_t *ex
 #endif
 
     JL_LOCK(&jl_modules_mutex);
+    PTRHASH_PIN(newm)
     uintptr_t *refcnt = (uintptr_t*)ptrhash_bp(&jl_current_modules, (void*)newm);
     assert(*refcnt > (uintptr_t)HT_NOTFOUND);
     *refcnt -= 1;

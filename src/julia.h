@@ -46,6 +46,11 @@
 #define MAX_ATOMIC_SIZE 8
 #define MAX_POINTERATOMIC_SIZE 8
 
+#define PTRHASH_PIN(key)                    \
+    if(object_is_managed_by_mmtk(key)) {    \
+        mmtk_pin_object(key);               \
+    }
+
 #ifdef _P64
 #define NWORDS(sz) (((sz)+7)>>3)
 #else

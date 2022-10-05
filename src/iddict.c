@@ -16,6 +16,9 @@ JL_DLLEXPORT jl_array_t *jl_idtable_rehash(jl_array_t *a, size_t newsz)
     size_t i;
     jl_value_t **ol = (jl_value_t **)a->data;
     jl_array_t *newa = jl_alloc_vec_any(newsz);
+    if(object_is_managed_by_mmtk(newa)) {
+        mmtk_pin_object(newa);
+    }
     // keep the original array in the original slot since we need `ol`
     // to be valid in the loop below.
     JL_GC_PUSH2(&newa, &a);
@@ -35,10 +38,20 @@ static inline int jl_table_assign_bp(jl_array_t **pa, jl_value_t *key, jl_value_
     // pa points to a **un**rooted address
     uint_t hv;
     jl_array_t *a = *pa;
+    // pin cache array and value
+    if(object_is_managed_by_mmtk(a)) {
+        mmtk_pin_object(a);
+    }
+    if(object_is_managed_by_mmtk(val)) {
+        mmtk_pin_object(val);
+    }
     size_t orig, index, iter, empty_slot;
     size_t newsz, sz = hash_size(a);
     if (sz == 0) {
         a = jl_alloc_vec_any(HT_N_INLINE);
+        if(object_is_managed_by_mmtk(a)) {
+            mmtk_pin_object(a);
+        }
         sz = hash_size(a);
         *pa = a;
     }
