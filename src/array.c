@@ -201,7 +201,9 @@ static inline jl_array_t *_new_array(jl_value_t *atype, uint32_t ndims, size_t *
 jl_array_t *jl_new_array_for_deserialization(jl_value_t *atype, uint32_t ndims, size_t *dims,
                                              int isunboxed, int hasptr, int isunion, int elsz)
 {
-    return _new_array_(atype, ndims, dims, isunboxed, hasptr, isunion, 0, (size_t)elsz);
+    jl_array_t* arr = _new_array_(atype, ndims, dims, isunboxed, hasptr, isunion, 0, (size_t)elsz);
+    mmtk_pin_object(arr);
+    return arr;
 }
 
 #ifndef JL_NDEBUG

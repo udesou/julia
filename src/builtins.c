@@ -303,9 +303,6 @@ static uintptr_t type_object_id_(jl_value_t *v, jl_varidx_t *env) JL_NOTSAFEPOIN
     if(object_is_managed_by_mmtk(v)) {
         mmtk_pin_object(v);
     }
-    if(object_is_managed_by_mmtk(env)) {
-        mmtk_pin_object(env);
-    }
     if (v == NULL)
         return 0;
     jl_datatype_t *tv = (jl_datatype_t*)jl_typeof(v);
@@ -421,9 +418,6 @@ static uintptr_t NOINLINE jl_object_id__cold(jl_datatype_t *dt, jl_value_t *v) J
 #endif
     }
     if (dt->name->mutabl) {
-        if (object_is_managed_by_mmtk(v)) {
-            mmtk_pin_object(v);
-        }
         return inthash((uintptr_t)v);
     }
     return immut_id_(dt, v, dt->hash);
@@ -431,9 +425,6 @@ static uintptr_t NOINLINE jl_object_id__cold(jl_datatype_t *dt, jl_value_t *v) J
 
 JL_DLLEXPORT inline uintptr_t jl_object_id_(jl_value_t *tv, jl_value_t *v) JL_NOTSAFEPOINT
 {
-    if(object_is_managed_by_mmtk(tv)) {
-        mmtk_pin_object(tv);
-    }
     if(object_is_managed_by_mmtk(v)) {
         mmtk_pin_object(v);
     }
