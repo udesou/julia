@@ -37,6 +37,7 @@ JL_DLLEXPORT void JL_NORETURN jl_error(const char *str)
         jl_exit(1);
     }
     jl_value_t *msg = jl_pchar_to_string((char*)str, strlen(str));
+    mmtk_pin_object(msg);
     JL_GC_PUSH1(&msg);
     jl_throw(jl_new_struct(jl_errorexception_type, msg));
 }

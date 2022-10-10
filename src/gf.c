@@ -1241,7 +1241,10 @@ static jl_method_match_t *_gf_invoke_lookup(jl_value_t *types JL_PROPAGATES_ROOT
 static jl_method_instance_t *jl_mt_assoc_by_type(jl_methtable_t *mt JL_PROPAGATES_ROOT, jl_datatype_t *tt, size_t world)
 {
     // caller must hold the mt->writelock
-    assert(tt->isdispatchtuple || tt->hasfreetypevars);
+    if(!(tt->isdispatchtuple || tt->hasfreetypevars)) {
+        printf("ASSERTION FAILED HERE!\n");
+        fflush(stdout);
+    }
     if (tt->isdispatchtuple) {
         jl_array_t *leafcache = jl_atomic_load_relaxed(&mt->leafcache);
         jl_typemap_entry_t *entry = lookup_leafcache(leafcache, (jl_value_t*)tt, world);
@@ -2565,8 +2568,27 @@ have_entry:
     return mfunc;
 }
 
+extern int mmtk_is_pinned(void* object);
+
 JL_DLLEXPORT jl_value_t *jl_apply_generic(jl_value_t *F, jl_value_t **args, uint32_t nargs)
 {
+    if(object_is_managed_by_mmtk(F)) {
+         if(jl_astaggedvalue(F)->bits.gc == 2 || jl_astaggedvalue(F)->bits.gc == 3) {
+            printf("function object %p of type %s has been copied\n", F, jl_typeof_str(F));
+            fflush(stdout);
+         }
+    }
+    for(int i = 0; i<nargs; i++) {
+        jl_value_t* arg_i = args[i];
+        if(object_is_managed_by_mmtk(arg_i)) {
+            if(jl_astaggedvalue(arg_i)->bits.gc == 2 || jl_astaggedvalue(arg_i)->bits.gc == 3) {
+                jl_value_t* new_arg = jl_typeof(arg_i);
+                printf("is object %p pinned? %d\n", arg_i, mmtk_is_pinned(new_arg));
+                printf("object %p at position %d of type %s has been copied\n", arg_i, i, jl_typeof_str(new_arg));
+                fflush(stdout);
+            }
+        }
+    }
     size_t world = jl_current_task->world_age;
     jl_method_instance_t *mfunc = jl_lookup_generic_(F, args, nargs,
                                                      jl_int32hash_fast(jl_return_address()),

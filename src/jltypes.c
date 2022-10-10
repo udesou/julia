@@ -1645,6 +1645,50 @@ jl_tupletype_t *jl_lookup_arg_tuple_type(jl_value_t *arg1, jl_value_t **args, si
 
 jl_tupletype_t *jl_inst_arg_tuple_type(jl_value_t *arg1, jl_value_t **args, size_t nargs, int leaf)
 {
+    if (arg1 != NULL) {
+        if(object_is_managed_by_mmtk(arg1)) {
+            if(jl_astaggedvalue(arg1)->bits.gc == 2 || jl_astaggedvalue(arg1)->bits.gc == 3) {
+                jl_value_t* new_arg = jl_typeof(arg1);
+                printf("jl_inst_arg_tuple_type: function object %p of type %s has been copied\n", arg1, jl_typeof_str(new_arg));
+                printf("string = %s\n", jl_string_ptr(new_arg));
+                fflush(stdout);
+            }
+        }
+    }
+    if (args != NULL) {
+        for (int i = 0; i < nargs; i++) {
+            jl_value_t *ai = (i == 0 ? arg1 : args[i - 1]);
+            if (leaf && jl_is_type(ai)) {
+                // if `ai` has free type vars this will not be a valid (concrete) type.
+                // TODO: it would be really nice to only dispatch and cache those as
+                // `jl_typeof(ai)`, but that will require some redesign of the caching
+                // logic.
+                ai = (jl_value_t*)jl_wrap_Type(ai);
+            }
+            else {
+                if(object_is_managed_by_mmtk(ai)) {
+                    if(jl_astaggedvalue(ai)->bits.gc == 2 || jl_astaggedvalue(ai)->bits.gc == 3) {
+                        jl_value_t* new_arg = jl_typeof(ai);
+                        printf("jl_inst_arg_tuple_type 1: object %p at position %d has been copied\n", ai, i);
+                        fflush(stdout);
+                        printf("jl_inst_arg_tuple_type 1: object %p at position %d of type %s has been copied\n", ai, i, jl_typeof_str(new_arg));
+                        fflush(stdout);
+                    }
+                }
+                ai = jl_typeof(ai);
+            }
+            if(object_is_managed_by_mmtk(ai)) {
+                if(jl_astaggedvalue(ai)->bits.gc == 2 || jl_astaggedvalue(ai)->bits.gc == 3) {
+                    jl_value_t* new_arg = jl_typeof(ai);
+                    printf("jl_inst_arg_tuple_type 2: object %p at position %d has been copied\n", ai, i);
+                    fflush(stdout);
+                    printf("jl_inst_arg_tuple_type 2: object %p at position %d of type %s has been copied\n", ai, i, jl_typeof_str(new_arg));
+                    fflush(stdout);
+                }
+            }
+        }
+    }
+
     jl_tupletype_t *tt = (jl_datatype_t*)lookup_typevalue(jl_tuple_typename, arg1, args, nargs, leaf);
     if (tt == NULL) {
         size_t i;

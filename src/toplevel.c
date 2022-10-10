@@ -1080,6 +1080,7 @@ static jl_value_t *jl_file_content_as_string(jl_value_t *filename)
     ios_seek_end(&f);
     size_t len = ios_pos(&f);
     jl_value_t *text = jl_alloc_string(len);
+    mmtk_pin_object(text);
     ios_seek(&f, 0);
     if (ios_readall(&f, jl_string_data(text), len) != len)
         jl_errorf("Error reading file \"%s\"", fname);

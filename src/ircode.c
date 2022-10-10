@@ -704,6 +704,7 @@ static jl_value_t *jl_decode_value(jl_ircode_state *s) JL_GC_DISABLED
     case TAG_STRING:
         n = read_int32(s->s);
         v = jl_alloc_string(n);
+        mmtk_pin_object(v);
         ios_readall(s->s, jl_string_data(v), n);
         return v;
     case TAG_LINEINFO:
@@ -936,6 +937,7 @@ JL_DLLEXPORT jl_value_t *jl_compress_argnames(jl_array_t *syms)
         len += namelen;
     }
     jl_value_t *str = jl_alloc_string(len);
+    mmtk_pin_object(str);
     len = 0;
     for (i = 0; i < nsyms; i++) {
         jl_sym_t *name = (jl_sym_t*)jl_array_ptr_ref(syms, i);

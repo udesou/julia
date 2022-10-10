@@ -285,6 +285,7 @@ JL_DLLEXPORT jl_array_t *jl_string_to_array(jl_value_t *str)
 {
     jl_task_t *ct = jl_current_task;
     jl_array_t *a;
+    mmtk_pin_object(str);
 
     int ndimwords = jl_array_ndimwords(1);
     int tsz = sizeof(jl_array_t) + ndimwords*sizeof(size_t) + sizeof(void*);
@@ -473,13 +474,7 @@ JL_DLLEXPORT jl_value_t *jl_array_to_string(jl_array_t *a)
          ((a->maxsize + sizeof(void*) + 1 <= GC_MAX_SZCLASS) == (len + sizeof(void*) + 1 <= GC_MAX_SZCLASS)))) {
         jl_value_t *o = jl_array_data_owner(a);
         if (jl_is_string(o)) {
-#ifdef MMTKHEAP
-            // since we need the size of the string to be accurate according to its allocation size, we simply allocate a new string here
-            // instead of changing its size to len as in `*(size_t*)o = len`
-            o = jl_gc_realloc_string(o, len);
-            jl_value_t** owner_addr = (a + jl_array_data_owner_offset(jl_array_ndims(a)));
-            owner_addr = o;
-#endif
+            mmtk_pin_object(o);
             a->flags.isshared = 1;
             *(size_t*)o = len;
             a->nrows = 0;
@@ -696,6 +691,7 @@ static int NOINLINE array_resize_buffer(jl_array_t *a, size_t newlen)
         jl_value_t *s;
         if (a->flags.isshared) {
             s = jl_alloc_string(nbytes - (elsz == 1));
+            mmtk_pin_object(s);
             newbuf = 1;
         }
         else {

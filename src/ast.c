@@ -486,9 +486,11 @@ static jl_value_t *scm_to_julia_(fl_context_t *fl_ctx, value_t e, jl_module_t *m
     }
     if (issymbol(e))
         return (jl_value_t*)scmsym_to_julia(fl_ctx, e);
-    if (fl_isstring(fl_ctx, e))
-        return jl_pchar_to_string((char*)cvalue_data(e), cvalue_len(e));
-    if (iscons(e) || e == fl_ctx->NIL) {
+    if (fl_isstring(fl_ctx, e)) {
+        jl_value_t *res = jl_pchar_to_string((char*)cvalue_data(e), cvalue_len(e));
+        mmtk_pin_object(res);
+        return res;
+    } if (iscons(e) || e == fl_ctx->NIL) {
         value_t hd;
         jl_sym_t *sym;
         if (e == fl_ctx->NIL) {
