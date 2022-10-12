@@ -918,8 +918,13 @@ JL_DLLEXPORT void jl_clear_malloc_data(void);
 JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *root) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *root, const jl_value_t *stored) JL_NOTSAFEPOINT;
 
+extern int object_is_managed_by_mmtk(void* obj);
+extern void queue_pair_objs(void* parent, void* ptr);
 STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
+    if (object_is_managed_by_mmtk((void*) parent) && object_is_managed_by_mmtk((void*) ptr)) {
+        queue_pair_objs((void*)parent, (void*)ptr);
+    }
 #ifndef MMTKHEAP
     // parent and ptr isa jl_value_t*
     if (__unlikely(jl_astaggedvalue(parent)->bits.gc == 3 && // parent is old and not in remset
@@ -1472,9 +1477,11 @@ JL_DLLEXPORT jl_value_t *jl_atomic_swap_bits(jl_value_t *dt, char *dst, const jl
 JL_DLLEXPORT int jl_atomic_bool_cmpswap_bits(char *dst, const jl_value_t *expected, const jl_value_t *src, int nb);
 JL_DLLEXPORT jl_value_t *jl_atomic_cmpswap_bits(jl_datatype_t *dt, jl_datatype_t *rettype, char *dst, const jl_value_t *expected, const jl_value_t *src, int nb);
 JL_DLLEXPORT jl_value_t *jl_new_struct(jl_datatype_t *type, ...);
+JL_DLLEXPORT jl_value_t *jl_new_struct_nm(jl_datatype_t *type, ...);
 JL_DLLEXPORT jl_value_t *jl_new_structv(jl_datatype_t *type, jl_value_t **args, uint32_t na);
 JL_DLLEXPORT jl_value_t *jl_new_structt(jl_datatype_t *type, jl_value_t *tup);
 JL_DLLEXPORT jl_value_t *jl_new_struct_uninit(jl_datatype_t *type);
+JL_DLLEXPORT jl_value_t *jl_new_struct_uninit_nm(jl_datatype_t *type);
 JL_DLLEXPORT jl_method_instance_t *jl_new_method_instance_uninit(void);
 JL_DLLEXPORT jl_svec_t *jl_svec(size_t n, ...) JL_MAYBE_UNROOTED;
 JL_DLLEXPORT jl_svec_t *jl_svec1(void *a);

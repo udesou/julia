@@ -403,7 +403,7 @@ JL_DLLEXPORT jl_code_instance_t *jl_new_codeinst(
 {
     jl_task_t *ct = jl_current_task;
     assert(min_world <= max_world && "attempting to set invalid world constraints");
-    jl_code_instance_t *codeinst = (jl_code_instance_t*)jl_gc_alloc(ct->ptls, sizeof(jl_code_instance_t),
+    jl_code_instance_t *codeinst = (jl_code_instance_t*)jl_gc_alloc_nm(ct->ptls, sizeof(jl_code_instance_t),
             jl_code_instance_type);
     codeinst->def = mi;
     codeinst->min_world = min_world;
@@ -2568,7 +2568,6 @@ have_entry:
     return mfunc;
 }
 
-extern int mmtk_is_pinned(void* object);
 
 JL_DLLEXPORT jl_value_t *jl_apply_generic(jl_value_t *F, jl_value_t **args, uint32_t nargs)
 {
@@ -2583,7 +2582,6 @@ JL_DLLEXPORT jl_value_t *jl_apply_generic(jl_value_t *F, jl_value_t **args, uint
         if(object_is_managed_by_mmtk(arg_i)) {
             if(jl_astaggedvalue(arg_i)->bits.gc == 2 || jl_astaggedvalue(arg_i)->bits.gc == 3) {
                 jl_value_t* new_arg = jl_typeof(arg_i);
-                printf("is object %p pinned? %d\n", arg_i, mmtk_is_pinned(new_arg));
                 printf("object %p at position %d of type %s has been copied\n", arg_i, i, jl_typeof_str(new_arg));
                 fflush(stdout);
             }

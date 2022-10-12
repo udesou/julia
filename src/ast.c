@@ -533,7 +533,7 @@ static jl_value_t *scm_to_julia_(fl_context_t *fl_ctx, value_t e, jl_module_t *m
             JL_GC_PUSH2(&linenum, &file);
             if (n == 2)
                 file = scm_to_julia_(fl_ctx, car_(cdr_(e)), mod);
-            temp = jl_new_struct(jl_linenumbernode_type, linenum, file);
+            temp = jl_new_struct_nm(jl_linenumbernode_type, linenum, file);
             JL_GC_POP();
             return temp;
         }
@@ -550,7 +550,7 @@ static jl_value_t *scm_to_julia_(fl_context_t *fl_ctx, value_t e, jl_module_t *m
             linenum = scm_to_julia_(fl_ctx, car_(lst), mod);
             lst = cdr_(lst);
             inlinedat = scm_to_julia_(fl_ctx, car_(lst), mod);
-            temp = jl_new_struct(jl_lineinfonode_type, modu, name, file, linenum, inlinedat);
+            temp = jl_new_struct_nm(jl_lineinfonode_type, modu, name, file, linenum, inlinedat);
             JL_GC_POP();
             return temp;
         }
@@ -1015,7 +1015,7 @@ static jl_value_t *jl_invoke_julia_macro(jl_array_t *args, jl_module_t *inmodule
     jl_value_t *lno = jl_array_ptr_ref(args, 1);
     margs[1] = lno;
     if (!jl_typeis(lno, jl_linenumbernode_type)) {
-        margs[1] = jl_new_struct(jl_linenumbernode_type, jl_box_long(0), jl_nothing);
+        margs[1] = jl_new_struct_nm(jl_linenumbernode_type, jl_box_long(0), jl_nothing);
     }
     margs[2] = (jl_value_t*)inmodule;
     for (i = 3; i < nargs; i++)

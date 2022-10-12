@@ -427,6 +427,7 @@ static jl_value_t *jl_decode_value_svec(jl_ircode_state *s, uint8_t tag) JL_GC_D
     else
         len = read_int32(s->s);
     jl_svec_t *sv = jl_alloc_svec_uninit(len);
+    mmtk_pin_object(sv);
     jl_value_t **data = jl_svec_data(sv);
     for (i = 0; i < len; i++) {
         data[i] = jl_decode_value(s);
@@ -460,6 +461,7 @@ static jl_value_t *jl_decode_value_array(jl_ircode_state *s, uint8_t tag) JL_GC_
     }
     jl_array_t *a = jl_new_array_for_deserialization(
             (jl_value_t*)NULL, ndims, dims, !isptr, hasptr, isunion, elsize);
+    mmtk_pin_object(a);
     jl_value_t *aty = jl_decode_value(s);
     jl_set_typeof(a, aty);
     if (a->flags.ptrarray) {
@@ -539,8 +541,11 @@ static jl_value_t *jl_decode_value_phi(jl_ircode_state *s, uint8_t tag) JL_GC_DI
         len_v = read_int32(s->s);
     }
     jl_array_t *e = jl_alloc_array_1d(jl_array_int32_type, len_e);
+    mmtk_pin_object(e);
     jl_array_t *v = jl_alloc_vec_any(len_v);
+    mmtk_pin_object(v);
     jl_value_t *phi = jl_new_struct(jl_phinode_type, e, v);
+    mmtk_pin_object(phi);
     int32_t *data_e = (int32_t*)(e->data);
     for (i = 0; i < len_e; i++) {
         data_e[i] = jl_unbox_int32(jl_decode_value(s));
@@ -560,7 +565,9 @@ static jl_value_t *jl_decode_value_phic(jl_ircode_state *s, uint8_t tag) JL_GC_D
     else
         len = read_int32(s->s);
     jl_array_t *v = jl_alloc_vec_any(len);
+    mmtk_pin_object(v);
     jl_value_t *phic = jl_new_struct(jl_phicnode_type, v);
+    mmtk_pin_object(phic);
     jl_value_t **data = (jl_value_t**)(v->data);
     for (i = 0; i < len; i++) {
         data[i] = jl_decode_value(s);
@@ -578,7 +585,7 @@ static jl_value_t *jl_decode_value_globalref(jl_ircode_state *s) JL_GC_DISABLED
 static jl_value_t *jl_decode_value_any(jl_ircode_state *s, uint8_t tag) JL_GC_DISABLED
 {
     int32_t sz = (tag == TAG_SHORT_GENERAL ? read_uint8(s->s) : read_int32(s->s));
-    jl_value_t *v = jl_gc_alloc(s->ptls, sz, NULL);
+    jl_value_t *v = jl_gc_alloc_nm(s->ptls, sz, NULL);
     jl_set_typeof(v, (void*)(intptr_t)0x50);
     jl_datatype_t *dt = (jl_datatype_t*)jl_decode_value(s);
     jl_set_typeof(v, dt);
@@ -648,19 +655,23 @@ static jl_value_t *jl_decode_value(jl_ircode_state *s) JL_GC_DISABLED
         return jl_decode_value_phic(s, tag);
     case TAG_GOTONODE: JL_FALLTHROUGH; case TAG_QUOTENODE:
         v = jl_new_struct_uninit(tag == TAG_GOTONODE ? jl_gotonode_type : jl_quotenode_type);
+        mmtk_pin_object(v);
         set_nth_field(tag == TAG_GOTONODE ? jl_gotonode_type : jl_quotenode_type, v, 0, jl_decode_value(s), 0);
         return v;
     case TAG_GOTOIFNOT:
         v = jl_new_struct_uninit(jl_gotoifnot_type);
+        mmtk_pin_object(v);
         set_nth_field(jl_gotoifnot_type, v, 0, jl_decode_value(s), 0);
         set_nth_field(jl_gotoifnot_type, v, 1, jl_decode_value(s), 0);
         return v;
     case TAG_ARGUMENT:
         v = jl_new_struct_uninit(jl_argument_type);
+        mmtk_pin_object(v);
         set_nth_field(jl_argument_type, v, 0, jl_decode_value(s), 0);
         return v;
     case TAG_RETURNNODE:
         v = jl_new_struct_uninit(jl_returnnode_type);
+        mmtk_pin_object(v);
         set_nth_field(jl_returnnode_type, v, 0, jl_decode_value(s), 0);
         return v;
     case TAG_SHORTER_INT64:
@@ -708,7 +719,7 @@ static jl_value_t *jl_decode_value(jl_ircode_state *s) JL_GC_DISABLED
         ios_readall(s->s, jl_string_data(v), n);
         return v;
     case TAG_LINEINFO:
-        v = jl_new_struct_uninit(jl_lineinfonode_type);
+        v = jl_new_struct_uninit_nm(jl_lineinfonode_type);
         for (i = 0; i < jl_datatype_nfields(jl_lineinfonode_type); i++) {
             //size_t offs = jl_field_offset(jl_lineinfonode_type, i);
             set_nth_field(jl_lineinfonode_type, v, i, jl_decode_value(s), 0);

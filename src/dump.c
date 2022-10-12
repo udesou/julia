@@ -1772,7 +1772,7 @@ static jl_value_t *jl_deserialize_value_array(jl_serializer_state *s, uint8_t ta
 static jl_value_t *jl_deserialize_value_method(jl_serializer_state *s, jl_value_t **loc) JL_GC_DISABLED
 {
     jl_method_t *m =
-        (jl_method_t*)jl_gc_alloc(s->ptls, sizeof(jl_method_t),
+        (jl_method_t*)jl_gc_alloc_nm(s->ptls, sizeof(jl_method_t),
                                   jl_method_type);
     memset(m, 0, sizeof(jl_method_t));
     uintptr_t pos = backref_list.len;
@@ -1874,7 +1874,7 @@ static jl_value_t *jl_deserialize_value_method(jl_serializer_state *s, jl_value_
 static jl_value_t *jl_deserialize_value_method_instance(jl_serializer_state *s, jl_value_t **loc) JL_GC_DISABLED
 {
     jl_method_instance_t *mi =
-        (jl_method_instance_t*)jl_gc_alloc(s->ptls, sizeof(jl_method_instance_t),
+        (jl_method_instance_t*)jl_gc_alloc_nm(s->ptls, sizeof(jl_method_instance_t),
                                        jl_method_instance_type);
     memset(mi, 0, sizeof(jl_method_instance_t));
     uintptr_t pos = backref_list.len;
@@ -1913,7 +1913,7 @@ static jl_value_t *jl_deserialize_value_method_instance(jl_serializer_state *s, 
 static jl_value_t *jl_deserialize_value_code_instance(jl_serializer_state *s, jl_value_t **loc) JL_GC_DISABLED
 {
     jl_code_instance_t *codeinst =
-        (jl_code_instance_t*)jl_gc_alloc(s->ptls, sizeof(jl_code_instance_t), jl_code_instance_type);
+        (jl_code_instance_t*)jl_gc_alloc_nm(s->ptls, sizeof(jl_code_instance_t), jl_code_instance_type);
     memset(codeinst, 0, sizeof(jl_code_instance_t));
     arraylist_push(&backref_list, codeinst);
     int flags = read_uint8(s->s);
@@ -2015,7 +2015,7 @@ static jl_value_t *jl_deserialize_value_module(jl_serializer_state *s) JL_GC_DIS
 
 static jl_value_t *jl_deserialize_value_singleton(jl_serializer_state *s, jl_value_t **loc) JL_GC_DISABLED
 {
-    jl_value_t *v = (jl_value_t*)jl_gc_alloc(s->ptls, 0, NULL);
+    jl_value_t *v = (jl_value_t*)jl_gc_alloc_nm(s->ptls, 0, NULL);
     uintptr_t pos = backref_list.len;
     arraylist_push(&backref_list, (void*)v);
     // TODO: optimize the case where the value can easily be obtained
@@ -2073,7 +2073,7 @@ static void jl_deserialize_struct(jl_serializer_state *s, jl_value_t *v) JL_GC_D
 static jl_value_t *jl_deserialize_value_any(jl_serializer_state *s, uint8_t tag, jl_value_t **loc) JL_GC_DISABLED
 {
     int32_t sz = (tag == TAG_SHORT_GENERAL ? read_uint8(s->s) : read_int32(s->s));
-    jl_value_t *v = jl_gc_alloc(s->ptls, sz, NULL);
+    jl_value_t *v = jl_gc_alloc_nm(s->ptls, sz, NULL);
     jl_set_typeof(v, (void*)(intptr_t)0x50);
     uintptr_t pos = backref_list.len;
     arraylist_push(&backref_list, v);
@@ -2083,7 +2083,7 @@ static jl_value_t *jl_deserialize_value_any(jl_serializer_state *s, uint8_t tag,
         int internal = read_uint8(s->s);
         jl_typename_t *tn;
         if (internal) {
-            tn = (jl_typename_t*)jl_gc_alloc(
+            tn = (jl_typename_t*)jl_gc_alloc_nm(
                     s->ptls, sizeof(jl_typename_t), jl_typename_type);
             memset(tn, 0, sizeof(jl_typename_t));
             tn->cache = jl_emptysvec; // the cache is refilled later (tag 5)
@@ -2203,7 +2203,7 @@ static jl_value_t *jl_deserialize_value(jl_serializer_state *s, jl_value_t **loc
             backref_list.items[pos] = v;
             return v;
         }
-        v = jl_gc_alloc(s->ptls, sizeof(jl_unionall_t), jl_unionall_type);
+        v = jl_gc_alloc_nm(s->ptls, sizeof(jl_unionall_t), jl_unionall_type);
         backref_list.items[pos] = v;
         ((jl_unionall_t*)v)->var = (jl_tvar_t*)jl_deserialize_value(s, (jl_value_t**)&((jl_unionall_t*)v)->var);
         jl_gc_wb(v, ((jl_unionall_t*)v)->var);
@@ -2211,7 +2211,7 @@ static jl_value_t *jl_deserialize_value(jl_serializer_state *s, jl_value_t **loc
         jl_gc_wb(v, ((jl_unionall_t*)v)->body);
         return v;
     case TAG_TVAR:
-        v = jl_gc_alloc(s->ptls, sizeof(jl_tvar_t), jl_tvar_type);
+        v = jl_gc_alloc_nm(s->ptls, sizeof(jl_tvar_t), jl_tvar_type);
         jl_tvar_t *tv = (jl_tvar_t*)v;
         arraylist_push(&backref_list, tv);
         tv->name = (jl_sym_t*)jl_deserialize_value(s, NULL);
@@ -2258,7 +2258,7 @@ static jl_value_t *jl_deserialize_value(jl_serializer_state *s, jl_value_t **loc
     case TAG_BASE:
         return (jl_value_t*)jl_base_module;
     case TAG_CNULL:
-        v = jl_gc_alloc(s->ptls, sizeof(void*), NULL);
+        v = jl_gc_alloc_nm(s->ptls, sizeof(void*), NULL);
         jl_set_typeof(v, (void*)(intptr_t)0x50);
         *(void**)v = NULL;
         uintptr_t pos = backref_list.len;
@@ -3362,8 +3362,10 @@ void jl_init_serializer(void)
     assert(LAST_TAG+1+i < 256);
 
     for (i = 2; i < 256; i++) {
-        if (deser_tag[i])
+        if (deser_tag[i]) {
+            PTRHASH_PIN(deser_tag[i])
             ptrhash_put(&ser_tag, deser_tag[i], (void*)i);
+        }
     }
 
     i = 2;

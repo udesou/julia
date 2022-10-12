@@ -1279,6 +1279,24 @@ JL_DLLEXPORT jl_value_t *jl_new_struct(jl_datatype_t *type, ...)
     return jv;
 }
 
+JL_DLLEXPORT jl_value_t *jl_new_struct_nm(jl_datatype_t *type, ...)
+{
+    jl_task_t *ct = jl_current_task;
+    if (type->instance != NULL) return type->instance;
+    va_list args;
+    size_t i, nf = jl_datatype_nfields(type);
+    va_start(args, type);
+    jl_value_t *jv = jl_gc_alloc_nm(ct->ptls, jl_datatype_size(type), type);
+    if (nf > 0 && jl_field_offset(type, 0) != 0) {
+        memset(jv, 0, jl_field_offset(type, 0));
+    }
+    for (i = 0; i < nf; i++) {
+        set_nth_field(type, jv, i, va_arg(args, jl_value_t*), 0);
+    }
+    va_end(args);
+    return jv;
+}
+
 JL_DLLEXPORT jl_value_t *jl_new_structv(jl_datatype_t *type, jl_value_t **args, uint32_t na)
 {
     jl_task_t *ct = jl_current_task;
@@ -1367,6 +1385,17 @@ JL_DLLEXPORT jl_value_t *jl_new_struct_uninit(jl_datatype_t *type)
     if (type->instance != NULL) return type->instance;
     size_t size = jl_datatype_size(type);
     jl_value_t *jv = jl_gc_alloc(ct->ptls, size, type);
+    if (size > 0)
+        memset(jl_data_ptr(jv), 0, size);
+    return jv;
+}
+
+JL_DLLEXPORT jl_value_t *jl_new_struct_uninit_nm(jl_datatype_t *type)
+{
+    jl_task_t *ct = jl_current_task;
+    if (type->instance != NULL) return type->instance;
+    size_t size = jl_datatype_size(type);
+    jl_value_t *jv = jl_gc_alloc_nm(ct->ptls, size, type);
     if (size > 0)
         memset(jl_data_ptr(jv), 0, size);
     return jv;

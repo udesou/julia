@@ -533,6 +533,7 @@ JL_DLLEXPORT jl_value_t *jl_alloc_string(size_t len)
 JL_DLLEXPORT jl_value_t *jl_pchar_to_string(const char *str, size_t len)
 {
     jl_value_t *s = jl_alloc_string(len);
+    mmtk_pin_object(s);
     if (len > 0)
         memcpy(jl_string_data(s), str, len);
     return s;

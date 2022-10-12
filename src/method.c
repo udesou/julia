@@ -502,7 +502,7 @@ void jl_add_function_name_to_lineinfo(jl_code_info_t *ci, jl_value_t *name)
         lno = jl_fieldref(ln, 3);
         inl = jl_fieldref(ln, 4);
         jl_value_t *ln_name = (jl_is_int32(inl) && jl_unbox_int32(inl) == 0) ? name : jl_fieldref_noalloc(ln, 1);
-        rt = jl_new_struct(jl_lineinfonode_type, mod, ln_name, file, lno, inl);
+        rt = jl_new_struct_nm(jl_lineinfonode_type, mod, ln_name, file, lno, inl);
         jl_array_ptr_set(li, i, rt);
     }
     JL_GC_POP();
@@ -666,11 +666,11 @@ static void jl_method_set_source(jl_method_t *m, jl_code_info_t *src)
     m->purity.bits = src->purity.bits;
     jl_add_function_name_to_lineinfo(src, (jl_value_t*)m->name);
 
-    jl_array_t *copy = NULL;
+    jl_array_t *copy = NULL, *stmts = NULL;
     jl_svec_t *sparam_vars = jl_outer_unionall_vars(m->sig);
-    JL_GC_PUSH3(&copy, &sparam_vars, &src);
+    JL_GC_PUSH4(&copy, &sparam_vars, &src, &stmts);
     assert(jl_typeis(src->code, jl_array_any_type));
-    jl_array_t *stmts = (jl_array_t*)src->code;
+    stmts = (jl_array_t*)src->code;
     size_t i, n = jl_array_len(stmts);
     copy = jl_alloc_vec_any(n);
     for (i = 0; i < n; i++) {
