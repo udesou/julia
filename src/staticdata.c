@@ -1575,6 +1575,8 @@ static void jl_reinit_item(jl_value_t *v, int how) JL_GC_DISABLED
             } *b;
             b = (struct binding*)&mod[1];
             while (nbindings > 0) {
+                PTRHASH_PIN(b->asname)
+                PTRHASH_PIN(&b->b)
                 ptrhash_put(&mod->bindings, b->asname, &b->b);
                 b += 1;
                 nbindings -= 1;
@@ -1699,6 +1701,8 @@ static jl_value_t *strip_codeinfo_meta(jl_method_t *m, jl_value_t *ci_, int orig
 
 static void record_field_change(jl_value_t **addr, jl_value_t *newval)
 {
+    PTRHASH_PIN(addr)
+    PTRHASH_PIN(newval)
     ptrhash_put(&field_replace, (void*)addr, newval);
 }
 
@@ -2250,6 +2254,7 @@ static void jl_init_serializer2(int for_serialize)
         htable_new(&backref_table, 0);
         uintptr_t i;
         for (i = 0; id_to_fptrs[i] != NULL; i++) {
+            PTRHASH_PIN(id_to_fptrs[i])
             ptrhash_put(&fptr_to_id, (void*)(uintptr_t)id_to_fptrs[i], (void*)(i + 2));
         }
     }

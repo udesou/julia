@@ -2567,6 +2567,23 @@ have_entry:
 
 JL_DLLEXPORT jl_value_t *jl_apply_generic(jl_value_t *F, jl_value_t **args, uint32_t nargs)
 {
+    if(object_is_managed_by_mmtk(F)) {
+         if(jl_astaggedvalue(F)->bits.gc == 2 || jl_astaggedvalue(F)->bits.gc == 3) {
+            jl_value_t* new_arg = jl_typeof(F);
+            printf("function object %p of type %s has been copied\n", F, jl_typeof_str(new_arg));
+            fflush(stdout);
+         }
+    }
+    for(int i = 0; i<nargs; i++) {
+        jl_value_t* arg_i = args[i];
+        if(object_is_managed_by_mmtk(arg_i)) {
+            if(jl_astaggedvalue(arg_i)->bits.gc == 2 || jl_astaggedvalue(arg_i)->bits.gc == 3) {
+                jl_value_t* new_arg = jl_typeof(arg_i);
+                printf("object %p at position %d of type %s has been copied\n", arg_i, i, jl_typeof_str(new_arg));
+                fflush(stdout);
+            }
+        }
+    }
     size_t world = jl_current_task->world_age;
     jl_method_instance_t *mfunc = jl_lookup_generic_(F, args, nargs,
                                                      jl_int32hash_fast(jl_return_address()),

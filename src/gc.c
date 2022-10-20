@@ -3874,6 +3874,9 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     size_t len = jl_string_len(s);
     jl_value_t *snew = jl_alloc_string(sz);
     memcpy(jl_string_data(snew), jl_string_data(s), sz <= len ? sz : len);
+    if(mmtk_is_pinned(s)) {
+        mmtk_pin_object(snew);
+    }
     return snew;
 #endif
 }
