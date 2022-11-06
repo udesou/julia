@@ -667,9 +667,6 @@ JL_DLLEXPORT jl_value_t *jl_get_global(jl_module_t *m, jl_sym_t *var)
     jl_binding_t *b = jl_get_binding(m, var);
     if (b == NULL) return NULL;
     if (b->deprecated) jl_binding_deprecation_warning(m, b);
-    if(object_is_managed_by_mmtk(b->value)) {
-        mmtk_pin_object(b->value);
-    }
     return b->value;
 }
 

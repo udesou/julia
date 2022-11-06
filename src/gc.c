@@ -1690,9 +1690,9 @@ JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *ptr)
     // should be safe here since GC is not allowed to run here and we only
     // write GC_OLD to the GC bits outside GC. This could cause
     // duplicated objects in the remset but that shouldn't be a problem.
-    o->bits.gc = GC_MARKED;
-    arraylist_push(ptls->heap.remset, (jl_value_t*)ptr);
-    ptls->heap.remset_nptr++; // conservative
+    // o->bits.gc = GC_MARKED;
+    // arraylist_push(ptls->heap.remset, (jl_value_t*)ptr);
+    // ptls->heap.remset_nptr++; // conservative
 }
 
 void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
@@ -1738,6 +1738,10 @@ JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
     jl_taggedvalue_t *buf = jl_astaggedvalue(bnd);
+    if(object_is_managed_by_mmtk(buf)) {
+        printf("buf = %p\n", buf);
+        fflush(stdout);
+    }
     buf->bits.gc = GC_MARKED;
     arraylist_push(&ptls->heap.rem_bindings, bnd);
 }
@@ -3101,12 +3105,18 @@ void jl_gc_premark(jl_ptls_t ptls2)
     for (size_t i = 0; i < len; i++) {
         jl_value_t *item = (jl_value_t*)items[i];
         objprofile_count(jl_typeof(item), 2, 0);
+        printf("item = %p\n", item);
+        fflush(stdout);
         jl_astaggedvalue(item)->bits.gc = GC_OLD_MARKED;
     }
     len = ptls2->heap.rem_bindings.len;
     items = ptls2->heap.rem_bindings.items;
     for (size_t i = 0; i < len; i++) {
         void *ptr = items[i];
+        if(object_is_managed_by_mmtk(ptr)) {
+            printf("ptr = %p\n", ptr);
+            fflush(stdout);
+        }
         jl_astaggedvalue(ptr)->bits.gc = GC_OLD_MARKED;
     }
 }

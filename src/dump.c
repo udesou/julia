@@ -2271,7 +2271,6 @@ static jl_value_t *jl_deserialize_value(jl_serializer_state *s, jl_value_t **loc
     case TAG_STRING:
         n = read_int32(s->s);
         v = jl_alloc_string(n);
-        mmtk_pin_object(v);
         arraylist_push(&backref_list, v);
         ios_readall(s->s, jl_string_data(v), n);
         return v;
