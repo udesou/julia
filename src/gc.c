@@ -1684,15 +1684,17 @@ static void gc_sweep_perm_alloc(void)
 
 JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *ptr)
 {
+#ifndef MMTKHEAP
     jl_ptls_t ptls = jl_current_task->ptls;
     jl_taggedvalue_t *o = jl_astaggedvalue(ptr);
     // The modification of the `gc_bits` is not atomic but it
     // should be safe here since GC is not allowed to run here and we only
     // write GC_OLD to the GC bits outside GC. This could cause
     // duplicated objects in the remset but that shouldn't be a problem.
-    // o->bits.gc = GC_MARKED;
-    // arraylist_push(ptls->heap.remset, (jl_value_t*)ptr);
-    // ptls->heap.remset_nptr++; // conservative
+    o->bits.gc = GC_MARKED;
+    arraylist_push(ptls->heap.remset, (jl_value_t*)ptr);
+    ptls->heap.remset_nptr++; // conservative
+#endif
 }
 
 void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
