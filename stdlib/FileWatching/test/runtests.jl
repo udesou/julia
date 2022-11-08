@@ -35,12 +35,24 @@ for i in 1:n
         0 <= val1 <= FDmax &&
         0 <= val2 <= FDmax
     GC.gc()
+    print(FDmax)
+    print("\n")
+    print(val1)
+    print("\n")
+    print(val2)
+    print("\n")
+    print(`ls -la /proc/$(getpid())/fd`)
+    print("\n")
     # Dump out what file descriptors are open for easier debugging of failure modes
     if !fd_in_limits && Sys.islinux()
         print(FDmax)
+        print("\n")
         print(val1)
-        print(val2)
+        print("\n")
+        print(val2)k
+        print("\n")
         print(`ls -la /proc/$(getpid())/fd`)
+        print("\n")
         GC.gc()
         run(`ls -la /proc/$(getpid())/fd`)
     end

@@ -66,6 +66,7 @@ JL_DLLEXPORT jl_typename_t *jl_new_typename_in(jl_sym_t *name, jl_module_t *modu
     jl_typename_t *tn =
         (jl_typename_t*)jl_gc_alloc(ct->ptls, sizeof(jl_typename_t),
                                     jl_typename_type);
+    mmtk_pin_object(tn);
     tn->name = name;
     tn->module = module;
     tn->wrapper = NULL;
