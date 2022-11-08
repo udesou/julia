@@ -168,13 +168,6 @@ jl_value_t *jl_eqtable_getkey(jl_array_t *h, jl_value_t *key, jl_value_t *deflt)
 JL_DLLEXPORT
 jl_value_t *jl_eqtable_pop(jl_array_t *h, jl_value_t *key, jl_value_t *deflt, int *found)
 {
-    if(object_is_managed_by_mmtk(key)) {
-        if(jl_astaggedvalue(key)->bits.gc == 2 || jl_astaggedvalue(key)->bits.gc == 3) {
-            jl_value_t* new_arg = jl_typeof(key);
-            printf("object %p of type %s has been copied\n", key, jl_typeof_str(new_arg));
-            fflush(stdout);
-        }
-    }
     _Atomic(jl_value_t*) *bp = jl_table_peek_bp(h, key);
     if (found)
         *found = (bp != NULL);

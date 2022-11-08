@@ -889,6 +889,7 @@ JL_DLLEXPORT jl_task_t *jl_new_task(jl_function_t *start, jl_value_t *completion
 {
     jl_task_t *ct = jl_current_task;
     jl_task_t *t = (jl_task_t*)jl_gc_alloc(ct->ptls, sizeof(jl_task_t), jl_task_type);
+    mmtk_pin_object(t);
     JL_PROBE_RT_NEW_TASK(ct, t);
     t->copy_stack = 0;
     if (ssize == 0) {
