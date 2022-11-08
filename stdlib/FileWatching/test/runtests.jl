@@ -18,20 +18,33 @@ intvls = [2, .2, .1, .005, .00001]
 
 pipe_fds = fill((Base.INVALID_OS_HANDLE, Base.INVALID_OS_HANDLE), n)
 for i in 1:n
+    GC.gc()
     if Sys.iswindows() || i > n ÷ 2
         uv_error("socketpair", ccall(:uv_socketpair, Cint, (Cint, Cint, Ptr{NTuple{2, Base.OS_HANDLE}}, Cint, Cint), 1, (Sys.iswindows() ? 6 : 0), Ref(pipe_fds, i), 0, 0))
     else
         uv_error("pipe", ccall(:uv_pipe, Cint, (Ptr{NTuple{2, Base.OS_HANDLE}}, Cint, Cint), Ref(pipe_fds, i), 0, 0))
     end
+    GC.gc()
     Ctype = Sys.iswindows() ? Ptr{Cvoid} : Cint
+    GC.gc()
     FDmax = Sys.iswindows() ? 0x7fff : (n + 60 + (isdefined(Main, :Revise) * 30)) # expectations on reasonable values
+    GC.gc()
+    val1 = Int(Base.cconvert(Ctype, pipe_fds[i][1]))
+    val2 = Int(Base.cconvert(Ctype, pipe_fds[i][2]))
     fd_in_limits =
-        0 <= Int(Base.cconvert(Ctype, pipe_fds[i][1])) <= FDmax &&
-        0 <= Int(Base.cconvert(Ctype, pipe_fds[i][2])) <= FDmax
+        0 <= val1 <= FDmax &&
+        0 <= val2 <= FDmax
+    GC.gc()
     # Dump out what file descriptors are open for easier debugging of failure modes
     if !fd_in_limits && Sys.islinux()
+        print(FDmax)
+        print(val1)
+        print(val2)
+        print(`ls -la /proc/$(getpid())/fd`)
+        GC.gc()
         run(`ls -la /proc/$(getpid())/fd`)
     end
+    GC.gc()
     @test fd_in_limits
 end
 

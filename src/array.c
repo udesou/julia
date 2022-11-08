@@ -1183,8 +1183,14 @@ JL_DLLEXPORT void jl_array_sizehint(jl_array_t *a, size_t sz)
     }
 }
 
+extern unsigned char mmtk_is_pinned(void* obj);
+
 JL_DLLEXPORT jl_array_t *jl_array_copy(jl_array_t *ary)
 {
+    if(object_is_managed_by_mmtk(ary) && mmtk_is_pinned(ary) != 0) {
+        printf("original array %p was pinned so its copy should be pinned too (?!)\n", ary);
+        fflush(stdout);
+    }
     size_t elsz = ary->elsize;
     size_t len = jl_array_len(ary);
     int isunion = jl_is_uniontype(jl_tparam0(jl_typeof(ary)));

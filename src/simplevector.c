@@ -71,8 +71,14 @@ JL_DLLEXPORT jl_svec_t *jl_alloc_svec(size_t n)
     return jv;
 }
 
+extern unsigned char mmtk_is_pinned(void* obj);
+
 JL_DLLEXPORT jl_svec_t *jl_svec_copy(jl_svec_t *a)
 {
+    if(object_is_managed_by_mmtk(a) && mmtk_is_pinned(a) != 0) {
+        printf("original svec = %p was pinned so its copy should be pinned too (?!)\n", a);
+        fflush(stdout);
+    }
     size_t n = jl_svec_len(a);
     jl_svec_t *c = jl_alloc_svec_uninit(n);
     memmove_refs((void**)jl_svec_data(c), (void**)jl_svec_data(a), n);
