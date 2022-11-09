@@ -1056,6 +1056,7 @@ CFI_NORETURN
     jl_task_t *ct = jl_get_current_task();
 #else
     jl_task_t *ct = jl_current_task;
+    JL_GC_PUSH1(&ct);
 #endif
     jl_ptls_t ptls = ct->ptls;
     jl_value_t *res;
@@ -1067,7 +1068,6 @@ CFI_NORETURN
     if (!pt->sticky && !pt->copy_stack)
         jl_atomic_store_release(&pt->tid, -1);
 #endif
-
     ct->started = 1;
     JL_PROBE_RT_START_TASK(ct);
     if (jl_atomic_load_relaxed(&ct->_isexception)) {
@@ -1095,6 +1095,7 @@ skip_pop_exception:;
     ct->result = res;
     jl_gc_wb(ct, ct->result);
     jl_finish_task(ct);
+    JL_GC_POP();
     jl_gc_debug_critical_error();
     abort();
 }
