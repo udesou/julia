@@ -312,6 +312,9 @@ static uintptr_t type_object_id_(jl_value_t *v, jl_varidx_t *env) JL_NOTSAFEPOIN
             i++;
             pe = pe->prev;
         }
+        if(object_is_managed_by_mmtk(v)) {
+            mmtk_pin_object(v);
+        }
         return inthash((uintptr_t)v);
     }
     if (tv == jl_uniontype_type) {
@@ -358,6 +361,9 @@ static uintptr_t immut_id_(jl_datatype_t *dt, jl_value_t *v, uintptr_t h) JL_NOT
         return ~h;
     size_t f, nf = jl_datatype_nfields(dt);
     if (nf == 0 || (!dt->layout->haspadding && dt->layout->npointers == 0)) {
+        if(object_is_managed_by_mmtk(v)) {
+            mmtk_pin_object(v);
+        }
         // operate element-wise if there are unused bits inside,
         // otherwise just take the whole data block at once
         // a few select pointers (notably symbol) also have special hash values
@@ -414,8 +420,12 @@ static uintptr_t NOINLINE jl_object_id__cold(jl_datatype_t *dt, jl_value_t *v) J
         return memhash32_seed(jl_string_data(v), jl_string_len(v), 0xedc3b677);
 #endif
     }
-    if (dt->name->mutabl)
+    if (dt->name->mutabl) {
+        if(object_is_managed_by_mmtk(v)) {
+            mmtk_pin_object(v);
+        }
         return inthash((uintptr_t)v);
+    }
     return immut_id_(dt, v, dt->hash);
 }
 

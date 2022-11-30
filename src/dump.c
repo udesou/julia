@@ -314,6 +314,7 @@ static void mark_backedges_in_worklist(jl_method_instance_t *mi, htable_t *visit
     int oldfound = (char*)ptrhash_get(visited, mi) - (char*)HT_NOTFOUND;
     if (oldfound < 3)
         return; // not in-progress
+    PTRHASH_PIN(mi)
     ptrhash_put(visited, mi, (void*)((char*)HT_NOTFOUND + 1 + found));
 #ifndef NDEBUG
     jl_module_t *mod = mi->def.module;
@@ -422,6 +423,8 @@ static jl_array_t *queue_external_mis(jl_array_t *list)
                     int found = has_backedge_to_worklist(mi, &visited, 1);
                     assert(found == 0 || found == 1);
                     if (found == 1) {
+                        PTRHASH_PIN(mi)
+                        PTRHASH_PIN(ci)
                         ptrhash_put(&external_mis, mi, ci);
                         n++;
                     }
@@ -665,6 +668,7 @@ static int jl_serialize_generic(jl_serializer_state *s, jl_value_t *v) JL_GC_DIS
             arraylist_push(&reinit_list, (void*)3);
         }
         pos <<= 1;
+        PTRHASH_PIN(v)
         ptrhash_put(&backref_table, v, (char*)HT_NOTFOUND + pos + 1);
     }
 
@@ -1339,6 +1343,8 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets)
     for (size_t i = 0; i < l / 2; i++) {
         jl_method_instance_t *caller = (jl_method_instance_t*)jl_array_ptr_ref(edges, i * 2);
         void *target = (void*)((char*)HT_NOTFOUND + i + 1);
+        PTRHASH_PIN(caller)
+        PTRHASH_PIN(target)
         ptrhash_put(&edges_ids, (void*)caller, target);
     }
     // process target list to turn it into a memoized validity table
@@ -1410,6 +1416,8 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets)
                 jl_array_ptr_1d_push(ext_targets, callee);
                 jl_array_ptr_1d_push(ext_targets, matches);
                 target = (void*)((char*)HT_NOTFOUND + jl_array_len(ext_targets) / 3);
+                PTRHASH_PIN(callee)
+                PTRHASH_PIN(target)
                 ptrhash_put(&edges_map2, (void*)callee, target);
             }
             idxs[++nt] = (char*)target - (char*)HT_NOTFOUND - 1;
@@ -1695,6 +1703,7 @@ static jl_value_t *jl_deserialize_datatype(jl_serializer_state *s, int pos, jl_v
         assert(pos > 0);
         arraylist_push(&flagref_list, loc == HT_NOTFOUND ? NULL : loc);
         arraylist_push(&flagref_list, (void*)(uintptr_t)pos);
+        PTRHASH_PIN(dt)
         ptrhash_put(&uniquing_table, dt, NULL);
     }
 
@@ -1867,6 +1876,8 @@ static jl_value_t *jl_deserialize_value_method(jl_serializer_state *s, jl_value_
             jl_svec_data(qmrval)[0] = (jl_value_t*)(uintptr_t)(key & ((((uint64_t)1) << 32) - 1));          // lo bits
             jl_svec_data(qmrval)[1] = (jl_value_t*)(uintptr_t)((key >> 32) & ((((uint64_t)1) << 32) - 1));  // hi bits
             jl_svec_data(qmrval)[2] = (jl_value_t*)newroots;
+            PTRHASH_PIN(m)
+            PTRHASH_PIN(qmrval)
             ptrhash_put(&queued_method_roots, m, qmrval);
         }
         return (jl_value_t*)m;
@@ -1995,6 +2006,7 @@ static jl_value_t *jl_deserialize_value_code_instance(jl_serializer_state *s, jl
     jl_gc_wb(codeinst, codeinst->next);
     if (validate) {
         codeinst->min_world = jl_atomic_load_acquire(&jl_world_counter);
+        PTRHASH_PIN(codeinst)
         ptrhash_put(&new_code_instance_validate, codeinst, (void*)(~(uintptr_t)HT_NOTFOUND));   // "HT_FOUND"
     }
     return (jl_value_t*)codeinst;
@@ -2140,6 +2152,7 @@ static jl_value_t *jl_deserialize_value_any(jl_serializer_state *s, uint8_t tag,
         if (internal) {
             tn = (jl_typename_t*)jl_gc_alloc(
                     s->ptls, sizeof(jl_typename_t), jl_typename_type);
+            mmtk_pin_object(tn);
             memset(tn, 0, sizeof(jl_typename_t));
             tn->cache = jl_emptysvec; // the cache is refilled later (tag 5)
             tn->linearcache = jl_emptysvec; // the cache is refilled later (tag 5)
@@ -2484,6 +2497,7 @@ void jl_verify_methods(jl_array_t *edges, jl_array_t *valids, htable_t *visited)
                 }
             }
         }
+        PTRHASH_PIN(caller)
         ptrhash_put(visited, caller, (void*)(((char*)HT_NOTFOUND) + valid + 1));
         //jl_static_show((JL_STREAM*)ios_stderr, (jl_value_t*)caller);
         //ios_puts(valid ? "valid\n" : "INVALID\n", ios_stderr);
@@ -2507,6 +2521,7 @@ static int mark_edges_in_worklist(jl_array_t *edges, int idx, jl_method_instance
         ptrhash_remove(visited, (void*)caller);
     }
     else {
+        PTRHASH_PIN(caller)
         ptrhash_put(visited, (void*)caller, (void*)((char*)HT_NOTFOUND + 1 + found));
     }
     jl_array_t *callee_ids = (jl_array_t*)jl_array_ptr_ref(edges, idx * 2 + 1);
@@ -2546,6 +2561,7 @@ static int jl_verify_graph_edge(jl_array_t *edges, int idx, htable_t *visited, i
     if (found != 2)
         return found - 1; // depth
     found = 0;
+    PTRHASH_PIN(caller)
     ptrhash_put(visited, (void*)caller, (void*)((char*)HT_NOTFOUND + 3 + depth)); // change 2 to in-progress at depth
     jl_array_t *callee_ids = (jl_array_t*)jl_array_ptr_ref(edges, idx * 2 + 1);
     assert(jl_typeis((jl_value_t*)callee_ids, jl_array_int32_type));
@@ -2580,6 +2596,7 @@ static int jl_verify_graph_edge(jl_array_t *edges, int idx, htable_t *visited, i
         ptrhash_remove(visited, (void*)caller);
     }
     else { // found invalid
+        PTRHASH_PIN(caller)
         ptrhash_put(visited, (void*)caller, (void*)((char*)HT_NOTFOUND + 1 + found));
     }
     if (cycle) {
@@ -2635,6 +2652,8 @@ static void jl_insert_backedges(jl_array_t *edges, jl_array_t *ext_targets, jl_a
         htable_reset(&visited, l);
         for (i = 0; i < l; i++) {
             jl_code_instance_t *ci = (jl_code_instance_t*)jl_array_ptr_ref(mi_list, i);
+            PTRHASH_PIN(ci->def)
+            PTRHASH_PIN(ci)
             ptrhash_put(&visited, (void*)ci->def, (void*)ci);
         }
     }
@@ -2938,6 +2957,7 @@ JL_DLLEXPORT int jl_save_incremental(const char *fname, jl_array_t *worklist)
     arraylist_new(&reinit_list, 0);
     htable_new(&backref_table, 5000);
     htable_new(&external_mis, newly_inferred ? jl_array_len(newly_inferred) : 0);
+    PTRHASH_PIN(jl_main_module)
     ptrhash_put(&backref_table, jl_main_module, (char*)HT_NOTFOUND + 1);
     backref_table_numel = 1;
     jl_idtable_type = jl_base_module ? jl_get_global(jl_base_module, jl_symbol("IdDict")) : NULL;
@@ -3078,6 +3098,7 @@ static jl_value_t *recache_type(jl_value_t *p) JL_GC_DISABLED
             size_t i, l = jl_svec_len(tt);
             for (i = 0; i < l; i++)
                 jl_svecset(tt, i, recache_type(jl_svecref(tt, i)));
+            PTRHASH_PIN(p)
             ptrhash_put(&uniquing_table, p, p); // ensures this algorithm isn't too exponential
         }
     }
@@ -3138,6 +3159,8 @@ static jl_datatype_t *recache_datatype(jl_datatype_t *dt) JL_GC_DISABLED
         assert(t->hash == dt->hash);
         assert(jl_invalid_types_equal(t, dt));
     }
+    PTRHASH_PIN(dt)
+    PTRHASH_PIN(t)
     ptrhash_put(&uniquing_table, dt, t);
     return t;
 }
@@ -3258,6 +3281,7 @@ static jl_value_t *jl_recache_other_(jl_value_t *o)
     if (jl_is_method(o)) {
         // lookup the real Method based on the placeholder sig
         newo = (jl_value_t*)jl_recache_method((jl_method_t*)o);
+        PTRHASH_PIN(newo)
         ptrhash_put(&uniquing_table, newo, newo);
     }
     else if (jl_is_method_instance(o)) {
@@ -3267,6 +3291,8 @@ static jl_value_t *jl_recache_other_(jl_value_t *o)
     else {
         abort();
     }
+    PTRHASH_PIN(o)
+    PTRHASH_PIN(newo)
     ptrhash_put(&uniquing_table, o, newo);
     return newo;
 }
@@ -3548,12 +3574,15 @@ void jl_init_serializer(void)
     assert(LAST_TAG+1+i < 256);
 
     for (i = 2; i < 256; i++) {
-        if (deser_tag[i])
+        if (deser_tag[i]) {
+            PTRHASH_PIN(deser_tag[i])
             ptrhash_put(&ser_tag, deser_tag[i], (void*)i);
+        }
     }
 
     i = 2;
     while (common_symbols[i-2] != NULL) {
+        PTRHASH_PIN(common_symbols[i-2])
         ptrhash_put(&common_symbol_tag, common_symbols[i-2], (void*)i);
         deser_symbols[i] = (jl_value_t*)common_symbols[i-2];
         i += 1;

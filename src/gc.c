@@ -3168,14 +3168,16 @@ JL_DLLEXPORT int jl_gc_enable(int on)
         if (jl_atomic_fetch_add(&jl_gc_disable_counter, -1) == 1) {
             gc_num.allocd += gc_num.deferred_alloc;
             gc_num.deferred_alloc = 0;
-        }
 #ifdef MMTKHEAP
-        enable_collection();
+            enable_collection();
 #endif
+        }
     }
     else if (prev && !on) {
 #ifdef MMTKHEAP
-        disable_collection();
+        if (jl_atomic_load(&jl_gc_disable_counter) == 0) {
+            disable_collection();
+        }
 #endif
         // enable -> disable
         jl_atomic_fetch_add(&jl_gc_disable_counter, 1);
@@ -4064,6 +4066,9 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     size_t len = jl_string_len(s);
     jl_value_t *snew = jl_alloc_string(sz);
     memcpy(jl_string_data(snew), jl_string_data(s), sz <= len ? sz : len);
+    if(mmtk_is_pinned(s)) {
+        mmtk_pin_object(snew);
+    }
     return snew;
 #endif
 }

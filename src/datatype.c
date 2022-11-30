@@ -65,6 +65,7 @@ JL_DLLEXPORT jl_typename_t *jl_new_typename_in(jl_sym_t *name, jl_module_t *modu
     jl_typename_t *tn =
         (jl_typename_t*)jl_gc_alloc(ct->ptls, sizeof(jl_typename_t),
                                     jl_typename_type);
+    mmtk_pin_object(tn);
     tn->name = name;
     tn->module = module;
     tn->wrapper = NULL;
@@ -96,6 +97,7 @@ jl_datatype_t *jl_new_uninitialized_datatype(void)
 {
     jl_task_t *ct = jl_current_task;
     jl_datatype_t *t = (jl_datatype_t*)jl_gc_alloc(ct->ptls, sizeof(jl_datatype_t), jl_datatype_type);
+    mmtk_pin_object(t);
     t->hash = 0;
     t->hasfreetypevars = 0;
     t->isdispatchtuple = 0;

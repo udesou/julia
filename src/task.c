@@ -893,6 +893,7 @@ JL_DLLEXPORT jl_task_t *jl_new_task(jl_function_t *start, jl_value_t *completion
 {
     jl_task_t *ct = jl_current_task;
     jl_task_t *t = (jl_task_t*)jl_gc_alloc(ct->ptls, sizeof(jl_task_t), jl_task_type);
+    mmtk_pin_object(t);
     JL_PROBE_RT_NEW_TASK(ct, t);
     t->copy_stack = 0;
     if (ssize == 0) {
@@ -1059,6 +1060,7 @@ CFI_NORETURN
     jl_task_t *ct = jl_get_current_task();
 #else
     jl_task_t *ct = jl_current_task;
+    JL_GC_PUSH1(&ct);
 #endif
     jl_ptls_t ptls = ct->ptls;
     jl_value_t *res;
@@ -1098,6 +1100,7 @@ skip_pop_exception:;
     ct->result = res;
     jl_gc_wb(ct, ct->result);
     jl_finish_task(ct);
+    JL_GC_POP();
     jl_gc_debug_critical_error();
     abort();
 }

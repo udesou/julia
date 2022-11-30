@@ -750,6 +750,7 @@ jl_value_t *NOINLINE jl_interpret_toplevel_thunk(jl_module_t *m, jl_code_info_t 
     unsigned nroots = jl_source_nslots(src) + jl_source_nssavalues(src);
     JL_GC_PUSHFRAME(s, s->locals, nroots);
     jl_array_t *stmts = src->code;
+    JL_GC_PUSH1(&stmts);
     assert(jl_typeis(stmts, jl_array_any_type));
     s->src = src;
     s->module = m;
@@ -761,6 +762,7 @@ jl_value_t *NOINLINE jl_interpret_toplevel_thunk(jl_module_t *m, jl_code_info_t 
     size_t last_age = ct->world_age;
     jl_value_t *r = eval_body(stmts, s, 0, 1);
     ct->world_age = last_age;
+    JL_GC_POP();
     JL_GC_POP();
     return r;
 }

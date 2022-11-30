@@ -477,10 +477,13 @@ JL_DLLEXPORT jl_value_t *jl_gc_alloc(jl_ptls_t ptls, size_t sz, void *ty);
 // jl_buff_tag must be a multiple of GC_PAGE_SZ so that it can't be
 // confused for an actual type reference.
 #define jl_buff_tag ((uintptr_t)0x4eadc000)
+extern byte_t mmtk_pin_object(void* obj);
 typedef void jl_gc_tracked_buffer_t; // For the benefit of the static analyzer
 STATIC_INLINE jl_gc_tracked_buffer_t *jl_gc_alloc_buf(jl_ptls_t ptls, size_t sz)
 {
-    return jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    jl_gc_tracked_buffer_t *buf = jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    mmtk_pin_object(buf);
+    return buf;
 }
 
 STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
