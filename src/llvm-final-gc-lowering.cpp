@@ -167,6 +167,11 @@ Value *FinalLowerGC::lowerQueueGCRoot(CallInst *target, Function &F)
     return target;
 }
 
+#ifdef MMTKHEAP
+extern size_t CURSOR_OFFSET;
+extern size_t LIMIT_OFFSET;
+#endif
+
 Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
 {
     assert(target->arg_size() == 2);
@@ -190,8 +195,8 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
         newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize });
 #else
         auto pool_osize = ConstantInt::get(Type::getInt64Ty(F.getContext()), osize);
-        auto cursor_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, cursor));
-        auto limit_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()),  offsetof(jl_tls_states_t, limit));
+        auto cursor_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), CURSOR_OFFSET);
+        auto limit_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()),  LIMIT_OFFSET);
 
         auto cursor_tls_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, cursor_pos);
         auto cursor_ptr = builder.CreateBitCast(cursor_tls_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "cursor_ptr");

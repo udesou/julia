@@ -285,8 +285,6 @@ typedef struct _jl_tls_states_t {
 
 #ifdef MMTKHEAP
     MMTkMutatorContext* mmtk_mutator_ptr;
-    void* cursor;
-    void* limit;
 #endif
 } jl_tls_states_t;
 
