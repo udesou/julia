@@ -239,6 +239,7 @@ jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
 #ifdef MMTKHEAP
+extern size_t MAX_STANDARD_OBJECT_SIZE;
 JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, size_t size, void* ty);
 JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
 #endif
@@ -382,7 +383,11 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     if (allocsz < sz) // overflow in adding offs, size was "negative"
         jl_throw(jl_memory_exception);
 
-    v = jl_mmtk_gc_alloc_default(ptls, allocsz, ty);
+    if (allocsz < (MAX_STANDARD_OBJECT_SIZE - 8)) { // buffer may take 8 bytes extra
+        v = jl_mmtk_gc_alloc_default(ptls, allocsz, ty);
+    } else {
+        v = jl_mmtk_gc_alloc_big(ptls, allocsz);
+    }
 #endif
     jl_set_typeof(v, ty);
     maybe_record_alloc_to_profile(v, sz, (jl_datatype_t*)ty);
