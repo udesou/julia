@@ -2816,6 +2816,10 @@ static void jl_restore_system_image_from_stream_(ios_t *f, jl_image_t *image, jl
     if (base)
         *base = image_base;
 
+#ifdef MMTKHEAP
+    map_boot_image_metadata((void*)&sysimg.buf[0], (void*)(&sysimg.buf[0] + sysimg.size));
+#endif
+
     s.s = &sysimg;
     jl_read_reloclist(&s, s.link_ids_gctags, GC_OLD); // gctags
     size_t sizeof_tags = ios_pos(&relocs);
