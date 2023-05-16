@@ -192,13 +192,13 @@ void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
 
 JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *ptr)
 {
-    /* TODO: not needed? */
+    unreachable();
 }
 
 // TODO: exported, but not MMTk-specific?
 JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
 {
-    /* TODO: confirm not needed? */
+    unreachable();
 }
 
 
@@ -207,11 +207,13 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT int jl_gc_mark_queue_obj(jl_ptls_t ptls, jl_value_t *obj)
 {
+    unreachable();
     return 0;
 }
 JL_DLLEXPORT void jl_gc_mark_queue_objarray(jl_ptls_t ptls, jl_value_t *parent,
                                             jl_value_t **objs, size_t nobjs)
 {
+    unreachable();
 }
 
 
@@ -229,7 +231,7 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
         jl_atomic_fetch_add((_Atomic(uint64_t)*)&gc_num.deferred_alloc, localbytes);
         return;
     }
-    handle_user_collection_request(ptls);
+    handle_user_collection_request(ptls, collection);
 }
 
 // Per-thread initialization
@@ -497,6 +499,20 @@ JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOT
     jl_gc_wb(parent, ptr);
 }
 
+JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_slow(ptls->mmtk_mutator_ptr, parent, (const void*) 0);
+}
+
+JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_slow(ptls->mmtk_mutator_ptr, parent, ptr);
+}
+
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero, unsigned align, unsigned offset)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
@@ -516,7 +532,7 @@ void jl_gc_notify_image_load(const char* img_data, size_t len)
 
 void jl_gc_notify_image_alloc(char* img_data, size_t len)
 {
-    // TODO: We should call MMTk to bulk set object metadata for the image region
+    mmtk_immortal_region_post_alloc((void*)img_data, len);
 }
 
 #ifdef __cplusplus
