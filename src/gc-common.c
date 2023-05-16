@@ -46,7 +46,9 @@ memsize_t max_total_memory = (memsize_t) 2 * 1024 * 1024 * 1024;
 
 // finalizers
 // ---
-uint64_t finalizer_rngState[4];
+static uint64_t finalizer_rngState[JL_RNG_SIZE];
+
+void jl_rng_split(uint64_t dst[JL_RNG_SIZE], uint64_t src[JL_RNG_SIZE]) JL_NOTSAFEPOINT;
 
 JL_DLLEXPORT void jl_gc_init_finalizer_rng_state(void)
 {
@@ -126,6 +128,10 @@ JL_DLLEXPORT void jl_gc_enable_finalizers(jl_task_t *ct, int on)
     }
 }
 
+JL_DLLEXPORT int8_t jl_gc_is_in_finalizer(void)
+{
+    return jl_current_task->ptls->in_finalizer;
+}
 
 // allocation
 // ---
@@ -242,6 +248,12 @@ void reset_thread_gc_counts(void) JL_NOTSAFEPOINT
             jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
         }
     }
+}
+
+static int64_t inc_live_bytes(int64_t inc) JL_NOTSAFEPOINT
+{
+    jl_timing_counter_inc(JL_TIMING_COUNTER_HeapSize, inc);
+    return live_bytes += inc;
 }
 
 void jl_gc_reset_alloc_count(void) JL_NOTSAFEPOINT
@@ -377,6 +389,11 @@ JL_DLLEXPORT void jl_gc_set_max_memory(uint64_t max_mem)
 {
     if (max_mem > 0 && max_mem < (uint64_t)1 << (sizeof(memsize_t) * 8 - 1))
         max_total_memory = max_mem;
+}
+
+JL_DLLEXPORT uint64_t jl_gc_get_max_memory(void)
+{
+    return max_total_memory;
 }
 
 // callback for passing OOM errors from gmp
