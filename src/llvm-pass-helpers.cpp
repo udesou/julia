@@ -121,6 +121,8 @@ namespace jl_intrinsics {
 #ifdef MMTK_GC
     static const char *WRITE_BARRIER_1_NAME = "julia.write_barrier1_noinline";
     static const char *WRITE_BARRIER_2_NAME = "julia.write_barrier2_noinline";
+    static const char *WRITE_BARRIER_1_SLOW_NAME = "julia.write_barrier_1_slow";
+    static const char *WRITE_BARRIER_2_SLOW_NAME = "julia.write_barrier_2_slow";
 #endif
 
     // Annotates a function with attributes suitable for GC allocation
@@ -265,6 +267,32 @@ namespace jl_intrinsics {
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
             return intrinsic;
         });
+    const IntrinsicDescription writeBarrier1Slow(
+        WRITE_BARRIER_1_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { context.T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_1_SLOW_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
+    const IntrinsicDescription writeBarrier2Slow(
+        WRITE_BARRIER_2_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { context.T_prjlvalue, context.T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_2_SLOW_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
 #endif
 }
 
@@ -276,6 +304,8 @@ namespace jl_well_known {
 #ifdef MMTK_GC
     static const char *GC_WB_1_NAME = XSTR(jl_gc_wb1_noinline);
     static const char *GC_WB_2_NAME = XSTR(jl_gc_wb2_noinline);
+    static const char *GC_WB_1_SLOW_NAME = XSTR(jl_gc_wb1_slow);
+    static const char *GC_WB_2_SLOW_NAME = XSTR(jl_gc_wb2_slow);
 #endif
 
     using jl_intrinsics::addGCAllocAttributes;
@@ -371,6 +401,34 @@ namespace jl_well_known {
                     false),
                 Function::ExternalLinkage,
                 GC_WB_2_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+
+    const WellKnownFunctionDescription GCWriteBarrier1Slow(
+        GC_WB_1_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { context.T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_1_SLOW_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+
+    const WellKnownFunctionDescription GCWriteBarrier2Slow(
+        GC_WB_2_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { context.T_prjlvalue, context.T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_2_SLOW_NAME);
             func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
             return func;
     });
