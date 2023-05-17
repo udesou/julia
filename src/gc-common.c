@@ -46,7 +46,7 @@ memsize_t max_total_memory = (memsize_t) 2 * 1024 * 1024 * 1024;
 
 // finalizers
 // ---
-static uint64_t finalizer_rngState[JL_RNG_SIZE];
+uint64_t finalizer_rngState[JL_RNG_SIZE];
 
 void jl_rng_split(uint64_t dst[JL_RNG_SIZE], uint64_t src[JL_RNG_SIZE]) JL_NOTSAFEPOINT;
 
@@ -259,7 +259,7 @@ static int64_t inc_live_bytes(int64_t inc) JL_NOTSAFEPOINT
 void jl_gc_reset_alloc_count(void) JL_NOTSAFEPOINT
 {
     combine_thread_gc_counts(&gc_num);
-    live_bytes += (gc_num.deferred_alloc + gc_num.allocd);
+    inc_live_bytes(gc_num.deferred_alloc + gc_num.allocd);
     gc_num.allocd = 0;
     gc_num.deferred_alloc = 0;
     reset_thread_gc_counts();
@@ -501,7 +501,7 @@ void *gc_managed_realloc_(jl_ptls_t ptls, void *d, size_t sz, size_t oldsz,
     // TODO: not needed? gc_cache.*?
     if (jl_astaggedvalue(owner)->bits.gc == GC_OLD_MARKED) {
         ptls->gc_cache.perm_scanned_bytes += allocsz - oldsz;
-        live_bytes += allocsz - oldsz;
+        inc_live_bytes(allocsz - oldsz);
     }
     else if (allocsz < oldsz)
         jl_atomic_store_relaxed(&ptls->gc_num.freed,

@@ -3677,6 +3677,31 @@ JL_DLLEXPORT jl_value_t *jl_gc_internal_obj_base_ptr(void *p)
     return NULL;
 }
 
+// gc thread function
+void jl_gc_threadfun(void *arg)
+{
+    jl_threadarg_t *targ = (jl_threadarg_t*)arg;
+
+    // initialize this thread (set tid and create heap)
+    jl_ptls_t ptls = jl_init_threadtls(targ->tid);
+
+    // wait for all threads
+    jl_gc_state_set(ptls, JL_GC_STATE_WAITING, 0);
+    uv_barrier_wait(targ->barrier);
+
+    // free the thread argument here
+    free(targ);
+
+    while (1) {
+        uv_mutex_lock(&gc_threads_lock);
+        while (jl_atomic_load(&gc_n_threads_marking) == 0) {
+            uv_cond_wait(&gc_threads_cond, &gc_threads_lock);
+        }
+        uv_mutex_unlock(&gc_threads_lock);
+        gc_mark_loop_parallel(ptls, 0);
+    }
+}
+
 // added for MMTk integration
 void enable_collection(void)
 {

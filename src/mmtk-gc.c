@@ -229,7 +229,7 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
         jl_atomic_fetch_add((_Atomic(uint64_t)*)&gc_num.deferred_alloc, localbytes);
         return;
     }
-    handle_user_collection_request(ptls);
+    handle_user_collection_request(ptls, collection);
 }
 
 // Per-thread initialization
@@ -275,7 +275,7 @@ void jl_gc_init(void)
     if (jl_options.heap_size_hint)
         jl_gc_set_max_memory(jl_options.heap_size_hint);
 
-    JL_MUTEX_INIT(&heapsnapshot_lock);
+    JL_MUTEX_INIT(&heapsnapshot_lock, "heapsnapshot_lock");
     uv_mutex_init(&gc_perm_lock);
 
     gc_num.interval = default_collect_interval;
@@ -478,6 +478,12 @@ void objprofile_printall(void)
 
 void objprofile_reset(void)
 {
+}
+
+// gc thread function
+void jl_gc_threadfun(void *arg)
+{
+    unreachable();
 }
 
 JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT

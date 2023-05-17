@@ -42,7 +42,7 @@ extern void jl_finalize_th(jl_task_t *ct, jl_value_t *o);
 extern jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value);
 extern jl_value_t *jl_gc_big_alloc_inner(jl_ptls_t ptls, size_t sz);
 extern jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int osize);
-extern void jl_rng_split(uint64_t to[4], uint64_t from[4]);
+extern void jl_rng_split(uint64_t to[JL_RNG_SIZE], uint64_t from[JL_RNG_SIZE]);
 extern void gc_premark(jl_ptls_t ptls2);
 extern void *gc_managed_realloc_(jl_ptls_t ptls, void *d, size_t sz, size_t oldsz,
                                  int isaligned, jl_value_t *owner, int8_t can_collect);
