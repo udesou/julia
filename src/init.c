@@ -825,7 +825,7 @@ JL_DLLEXPORT void julia_init(JL_IMAGE_SEARCH rel)
     jl_ptls_t ptls = jl_init_threadtls(0);
 
 #ifdef MMTK_GC
-    initialize_collection((void *)ptls);
+    mmtk_initialize_collection((void *)ptls);
 #endif
 #pragma GCC diagnostic push
 #if defined(_COMPILER_GCC_) && __GNUC__ >= 12

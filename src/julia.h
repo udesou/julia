@@ -2383,7 +2383,7 @@ extern JL_DLLEXPORT int jl_default_debug_info_kind;
 extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
 extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
 extern const uint8_t MMTK_NEEDS_WRITE_BARRIER;
-extern const uint8_t OBJECT_BARRIER;
+extern const uint8_t MMTK_OBJECT_BARRIER;
 extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
 
 // Directly call into MMTk for write barrier (debugging only)
@@ -2397,7 +2397,7 @@ STATIC_INLINE void mmtk_gc_wb_full(const void *parent, const void *ptr) JL_NOTSA
 // Inlined fastpath
 STATIC_INLINE void mmtk_gc_wb_fast(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
-    if (MMTK_NEEDS_WRITE_BARRIER == OBJECT_BARRIER) {
+    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
         intptr_t addr = (intptr_t) (void*) parent;
         uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
         intptr_t shift = (addr >> 3) & 0b111;

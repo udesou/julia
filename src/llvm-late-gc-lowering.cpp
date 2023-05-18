@@ -2543,7 +2543,7 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
         // But for other MMTk plans, we need to be careful.
         const bool INLINE_WRITE_BARRIER = true;
         if (CI->getCalledOperand() == write_barrier_func) {
-            if (MMTK_NEEDS_WRITE_BARRIER == OBJECT_BARRIER) {
+            if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
                 if (INLINE_WRITE_BARRIER) {
                     auto i8_ty = Type::getInt8Ty(F.getContext());
                     auto intptr_ty = T_size;

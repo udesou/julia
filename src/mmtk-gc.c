@@ -72,7 +72,7 @@ JL_DLLEXPORT void jl_gc_run_pending_finalizers(jl_task_t *ct)
 
 JL_DLLEXPORT void jl_gc_add_ptr_finalizer(jl_ptls_t ptls, jl_value_t *v, void *f) JL_NOTSAFEPOINT
 {
-    register_finalizer(v, f, 1);
+    mmtk_register_finalizer(v, f, 1);
 }
 
 // schedule f(v) to call at the next quiescent interval (aka after the next safepoint/region on all threads)
@@ -87,13 +87,13 @@ JL_DLLEXPORT void jl_gc_add_finalizer_th(jl_ptls_t ptls, jl_value_t *v, jl_funct
         jl_gc_add_ptr_finalizer(ptls, v, jl_unbox_voidpointer(f));
     }
     else {
-        register_finalizer(v, f, 0);
+        mmtk_register_finalizer(v, f, 0);
     }
 }
 
 JL_DLLEXPORT void jl_finalize_th(jl_task_t *ct, jl_value_t *o)
 {
-    run_finalizers_for_obj(o);
+    mmtk_run_finalizers_for_obj(o);
 }
 
 void jl_gc_run_all_finalizers(jl_task_t *ct)
@@ -103,7 +103,7 @@ void jl_gc_run_all_finalizers(jl_task_t *ct)
 
 void jl_gc_add_finalizer_(jl_ptls_t ptls, void *v, void *f) JL_NOTSAFEPOINT
 {
-    register_finalizer(v, f, 0);
+    mmtk_register_finalizer(v, f, 0);
 }
 
 
@@ -192,13 +192,13 @@ void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
 
 JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *ptr)
 {
-    unreachable();
+    mmtk_unreachable();
 }
 
 // TODO: exported, but not MMTk-specific?
 JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
 {
-    unreachable();
+    mmtk_unreachable();
 }
 
 
@@ -207,13 +207,13 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT int jl_gc_mark_queue_obj(jl_ptls_t ptls, jl_value_t *obj)
 {
-    unreachable();
+    mmtk_unreachable();
     return 0;
 }
 JL_DLLEXPORT void jl_gc_mark_queue_objarray(jl_ptls_t ptls, jl_value_t *parent,
                                             jl_value_t **objs, size_t nobjs)
 {
-    unreachable();
+    mmtk_unreachable();
 }
 
 
@@ -231,7 +231,7 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
         jl_atomic_fetch_add((_Atomic(uint64_t)*)&gc_num.deferred_alloc, localbytes);
         return;
     }
-    handle_user_collection_request(ptls, collection);
+    mmtk_handle_user_collection_request(ptls, collection);
 }
 
 // Per-thread initialization
@@ -266,7 +266,7 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     memset(&ptls->gc_num, 0, sizeof(ptls->gc_num));
     jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
 
-    MMTk_Mutator mmtk_mutator = bind_mutator((void *)ptls, ptls->tid);
+    MMTk_Mutator mmtk_mutator = mmtk_bind_mutator((void *)ptls, ptls->tid);
     ptls->mmtk_mutator_ptr = ((MMTkMutatorContext*)mmtk_mutator);
 }
 
@@ -337,9 +337,9 @@ void jl_gc_init(void)
 
     // if only max size is specified initialize MMTk with a fixed size heap
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        gc_init(0, max_heap_size, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
+        mmtk_gc_init(0, max_heap_size, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
     } else {
-        gc_init(min_heap_size, max_heap_size, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
+        mmtk_gc_init(min_heap_size, max_heap_size, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
     }
 }
 
@@ -485,7 +485,17 @@ void objprofile_reset(void)
 // gc thread function
 void jl_gc_threadfun(void *arg)
 {
-    unreachable();
+    mmtk_unreachable();
+}
+
+// added for MMTk integration
+void enable_collection(void)
+{
+    mmtk_enable_collection();
+}
+void disable_collection(void)
+{
+    mmtk_disable_collection();
 }
 
 JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
@@ -522,7 +532,7 @@ JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFE
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero, unsigned align, unsigned offset)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
-    void* addr = alloc(ptls->mmtk_mutator_ptr, sz, align, offset, 1);
+    void* addr = mmtk_alloc(ptls->mmtk_mutator_ptr, sz, align, offset, 1);
     return addr;
 }
 

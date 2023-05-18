@@ -333,15 +333,16 @@ extern jl_array_t *jl_all_methods JL_GLOBALLY_ROOTED;
 JL_DLLEXPORT extern int jl_lineno;
 JL_DLLEXPORT extern const char *jl_filename;
 
-void enable_collection(void);
-void disable_collection(void);
+extern void enable_collection(void);
+extern void disable_collection(void);
 jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
 #ifdef MMTK_GC
-JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
-JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
-extern void post_alloc(void* mutator, void* obj, size_t bytes, int allocator);
+JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
+JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
+JL_DLLIMPORT extern void mmtk_post_alloc(void* mutator, void* obj, size_t bytes, int allocator);
+JL_DLLIMPORT extern void mmtk_initialize_collection(void* tls);
 #endif // MMTK_GC
 JL_DLLEXPORT int jl_gc_classify_pools(size_t sz, int *osize) JL_NOTSAFEPOINT;
 extern uv_mutex_t gc_perm_lock;
@@ -549,7 +550,7 @@ STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
     o->header = tag | GC_OLD_MARKED;
 #ifdef MMTK_GC
     jl_ptls_t ptls = jl_current_task->ptls;
-    post_alloc(ptls->mmtk_mutator_ptr, jl_valueof(o), allocsz, 1);
+    mmtk_post_alloc(ptls->mmtk_mutator_ptr, jl_valueof(o), allocsz, 1);
 #endif
     return jl_valueof(o);
 }

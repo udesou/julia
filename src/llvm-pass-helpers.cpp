@@ -243,11 +243,13 @@ namespace jl_intrinsics {
 #ifdef MMTK_GC
     const IntrinsicDescription writeBarrier1(
         WRITE_BARRIER_1_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto intrinsic = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_1_NAME);
@@ -256,11 +258,13 @@ namespace jl_intrinsics {
         });
     const IntrinsicDescription writeBarrier2(
         WRITE_BARRIER_2_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto intrinsic = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue, context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue, T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_2_NAME);
@@ -269,11 +273,13 @@ namespace jl_intrinsics {
         });
     const IntrinsicDescription writeBarrier1Slow(
         WRITE_BARRIER_1_SLOW_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto intrinsic = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_1_SLOW_NAME);
@@ -282,11 +288,13 @@ namespace jl_intrinsics {
         });
     const IntrinsicDescription writeBarrier2Slow(
         WRITE_BARRIER_2_SLOW_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto intrinsic = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue, context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue, T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_2_SLOW_NAME);
@@ -379,11 +387,13 @@ namespace jl_well_known {
 #ifdef MMTK_GC
     const WellKnownFunctionDescription GCWriteBarrier1(
         GC_WB_1_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto func = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 GC_WB_1_NAME);
@@ -393,11 +403,13 @@ namespace jl_well_known {
 
     const WellKnownFunctionDescription GCWriteBarrier2(
         GC_WB_2_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto func = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue, context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue, T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 GC_WB_2_NAME);
@@ -407,11 +419,13 @@ namespace jl_well_known {
 
     const WellKnownFunctionDescription GCWriteBarrier1Slow(
         GC_WB_1_SLOW_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto func = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 GC_WB_1_SLOW_NAME);
@@ -421,11 +435,13 @@ namespace jl_well_known {
 
     const WellKnownFunctionDescription GCWriteBarrier2Slow(
         GC_WB_2_SLOW_NAME,
-        [](const JuliaPassContext &context) {
+        [](Type *T_size) {
+            auto &ctx = T_size->getContext();
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(ctx);
             auto func = Function::Create(
                 FunctionType::get(
-                    Type::getVoidTy(context.getLLVMContext()),
-                    { context.T_prjlvalue, context.T_prjlvalue },
+                    Type::getVoidTy(ctx),
+                    { T_prjlvalue, T_prjlvalue },
                     false),
                 Function::ExternalLinkage,
                 GC_WB_2_SLOW_NAME);
