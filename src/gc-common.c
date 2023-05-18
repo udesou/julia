@@ -6,6 +6,8 @@ jl_gc_num_t gc_num = {0};
 size_t last_long_collect_interval;
 int gc_n_threads;
 jl_ptls_t* gc_all_tls_states;
+// `tid` of first GC thread
+int gc_first_tid;
 
 int64_t live_bytes = 0;
 
