@@ -335,6 +335,9 @@ void jl_gc_init(void)
         max_heap_size = uv_get_free_memory() * 70 / 100;
     }
 
+    // If the two values are the same, we can use either. Otherwise, we need to be careful.
+    assert(jl_n_gcthreads == jl_options.ngcthreads);
+
     // if only max size is specified initialize MMTk with a fixed size heap
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
         mmtk_gc_init(0, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
