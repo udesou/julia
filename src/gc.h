@@ -47,7 +47,24 @@ extern void gc_premark(jl_ptls_t ptls2);
 extern void *gc_managed_realloc_(jl_ptls_t ptls, void *d, size_t sz, size_t oldsz,
                                  int isaligned, jl_value_t *owner, int8_t can_collect);
 extern size_t jl_array_nbytes(jl_array_t *a);
-extern void objprofile_count(void *ty, int old, int sz);
+
+#ifdef OBJPROFILE
+void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT;
+void objprofile_printall(void);
+void objprofile_reset(void);
+#else
+static inline void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT
+{
+}
+
+static inline void objprofile_printall(void)
+{
+}
+
+static inline void objprofile_reset(void)
+{
+}
+#endif
 
 #define malloc_cache_align(sz) jl_malloc_aligned(sz, JL_CACHE_BYTE_ALIGNMENT)
 #define realloc_cache_align(p, sz, oldsz) jl_realloc_aligned(p, sz, oldsz, JL_CACHE_BYTE_ALIGNMENT)
@@ -70,7 +87,7 @@ extern uint64_t finalizer_rngState[];
 extern int gc_n_threads;
 extern jl_ptls_t* gc_all_tls_states;
 
-// keep in sync with the Julia type of the same name in base/timing.jl
+// This struct must be kept in sync with the Julia type of the same name in base/timing.jl
 typedef struct {
     int64_t     allocd;
     int64_t     deferred_alloc;
@@ -82,7 +99,6 @@ typedef struct {
     uint64_t    freecall;
     uint64_t    total_time;
     uint64_t    total_allocd;
-    uint64_t    since_sweep;
     size_t      interval;
     int         pause;
     int         full_sweep;
@@ -90,6 +106,7 @@ typedef struct {
     uint64_t    max_memory;
     uint64_t    time_to_safepoint;
     uint64_t    max_time_to_safepoint;
+    uint64_t    total_time_to_safepoint;
     uint64_t    sweep_time;
     uint64_t    mark_time;
     uint64_t    total_sweep_time;
@@ -216,32 +233,6 @@ typedef struct {
     jl_alloc_num_t other;
     jl_alloc_num_t print;
 } jl_gc_debug_env_t;
-
-// This struct must be kept in sync with the Julia type of the same name in base/timing.jl
-typedef struct {
-    int64_t     allocd;
-    int64_t     deferred_alloc;
-    int64_t     freed;
-    uint64_t    malloc;
-    uint64_t    realloc;
-    uint64_t    poolalloc;
-    uint64_t    bigalloc;
-    uint64_t    freecall;
-    uint64_t    total_time;
-    uint64_t    total_allocd;
-    size_t      interval;
-    int         pause;
-    int         full_sweep;
-    uint64_t    max_pause;
-    uint64_t    max_memory;
-    uint64_t    time_to_safepoint;
-    uint64_t    max_time_to_safepoint;
-    uint64_t    total_time_to_safepoint;
-    uint64_t    sweep_time;
-    uint64_t    mark_time;
-    uint64_t    total_sweep_time;
-    uint64_t    total_mark_time;
-} jl_gc_num_t;
 
 // Array chunks (work items representing suffixes of
 // large arrays of pointers left to be marked)

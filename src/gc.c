@@ -376,10 +376,6 @@ void jl_gc_wait_for_the_world(jl_ptls_t* gc_all_tls_states, int gc_n_threads)
     }
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
 // malloc wrappers, aligned allocation
 
 #if defined(_OS_WINDOWS_)
@@ -2648,6 +2644,8 @@ JL_EXTENSION NOINLINE void gc_mark_loop_serial(jl_ptls_t ptls)
     gc_drain_own_chunkqueue(ptls, &ptls->mark_queue);
 }
 
+extern int gc_first_tid;
+
 void gc_mark_and_steal(jl_ptls_t ptls)
 {
     jl_gc_markqueue_t *mq = &ptls->mark_queue;
@@ -2799,23 +2797,108 @@ void gc_mark_clean_reclaim_sets(void)
     }
 }
 
-static void gc_premark(jl_ptls_t ptls2)
+// void gc_premark(jl_ptls_t ptls2)
+// {
+//     arraylist_t *remset = ptls2->heap.remset;
+//     ptls2->heap.remset = ptls2->heap.last_remset;
+//     ptls2->heap.last_remset = remset;
+//     ptls2->heap.remset->len = 0;
+//     ptls2->heap.remset_nptr = 0;
+//     // avoid counting remembered objects
+//     // in `perm_scanned_bytes`
+//     size_t len = remset->len;
+//     void **items = remset->items;
+//     for (size_t i = 0; i < len; i++) {
+//         jl_value_t *item = (jl_value_t *)items[i];
+//         objprofile_count(jl_typeof(item), 2, 0);
+//         jl_astaggedvalue(item)->bits.gc = GC_OLD_MARKED;
+//     }
+// }
+
+#ifdef OBJPROFILE
+static htable_t obj_counts[3];
+static htable_t obj_sizes[3];
+void objprofile_count(void *ty, int old, int sz)
 {
-    arraylist_t *remset = ptls2->heap.remset;
-    ptls2->heap.remset = ptls2->heap.last_remset;
-    ptls2->heap.last_remset = remset;
-    ptls2->heap.remset->len = 0;
-    ptls2->heap.remset_nptr = 0;
-    // avoid counting remembered objects
-    // in `perm_scanned_bytes`
-    size_t len = remset->len;
-    void **items = remset->items;
-    for (size_t i = 0; i < len; i++) {
-        jl_value_t *item = (jl_value_t *)items[i];
-        objprofile_count(jl_typeof(item), 2, 0);
-        jl_astaggedvalue(item)->bits.gc = GC_OLD_MARKED;
+    if (gc_verifying) return;
+    if ((intptr_t)ty <= 0x10) {
+        ty = (void*)jl_buff_tag;
+    }
+    else if (ty != (void*)jl_buff_tag && ty != jl_malloc_tag &&
+             jl_typeof(ty) == (jl_value_t*)jl_datatype_type &&
+             ((jl_datatype_t*)ty)->instance) {
+        ty = jl_singleton_tag;
+    }
+    void **bp = ptrhash_bp(&obj_counts[old], ty);
+    if (*bp == HT_NOTFOUND)
+        *bp = (void*)2;
+    else
+        (*((intptr_t*)bp))++;
+    bp = ptrhash_bp(&obj_sizes[old], ty);
+    if (*bp == HT_NOTFOUND)
+        *bp = (void*)(intptr_t)(1 + sz);
+    else
+        *((intptr_t*)bp) += sz;
+}
+
+void objprofile_reset(void)
+{
+    for (int g = 0; g < 3; g++) {
+        htable_reset(&obj_counts[g], 0);
+        htable_reset(&obj_sizes[g], 0);
     }
 }
+
+static void objprofile_print(htable_t nums, htable_t sizes)
+{
+    for(int i=0; i < nums.size; i+=2) {
+        if (nums.table[i+1] != HT_NOTFOUND) {
+            void *ty = nums.table[i];
+            int num = (intptr_t)nums.table[i + 1] - 1;
+            size_t sz = (uintptr_t)ptrhash_get(&sizes, ty) - 1;
+            static const int ptr_hex_width = 2 * sizeof(void*);
+            if (sz > 2e9) {
+                jl_safe_printf(" %6d : %*.1f GB of (%*p) ",
+                               num, 6, ((double)sz) / 1024 / 1024 / 1024,
+                               ptr_hex_width, ty);
+            }
+            else if (sz > 2e6) {
+                jl_safe_printf(" %6d : %*.1f MB of (%*p) ",
+                               num, 6, ((double)sz) / 1024 / 1024,
+                               ptr_hex_width, ty);
+            }
+            else if (sz > 2e3) {
+                jl_safe_printf(" %6d : %*.1f kB of (%*p) ",
+                               num, 6, ((double)sz) / 1024,
+                               ptr_hex_width, ty);
+            }
+            else {
+                jl_safe_printf(" %6d : %*d  B of (%*p) ",
+                          num, 6, (int)sz, ptr_hex_width, ty);
+            }
+            if (ty == (void*)jl_buff_tag)
+                jl_safe_printf("#<buffer>");
+            else if (ty == jl_malloc_tag)
+                jl_safe_printf("#<malloc>");
+            else if (ty == jl_singleton_tag)
+                jl_safe_printf("#<singletons>");
+            else
+                jl_static_show(JL_STDERR, (jl_value_t*)ty);
+            jl_safe_printf("\n");
+        }
+    }
+}
+
+void objprofile_printall(void)
+{
+    jl_safe_printf("Transient mark :\n");
+    objprofile_print(obj_counts[0], obj_sizes[0]);
+    jl_safe_printf("Perm mark :\n");
+    objprofile_print(obj_counts[1], obj_sizes[1]);
+    jl_safe_printf("Remset :\n");
+    objprofile_print(obj_counts[2], obj_sizes[2]);
+}
+#endif
 
 static void gc_queue_thread_local(jl_gc_markqueue_t *mq, jl_ptls_t ptls2)
 {
@@ -2954,6 +3037,9 @@ static void sweep_finalizer_list(arraylist_t *list)
 }
 
 size_t jl_maxrss(void);
+
+extern void objprofile_printall(void);
+extern void objprofile_reset(void);
 
 // Only one thread should be running in this function
 static int _jl_gc_collect(jl_ptls_t ptls, jl_gc_collection_t collection)
@@ -3705,6 +3791,22 @@ void enable_collection(void)
 {
 }
 void disable_collection(void)
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
 {
 }
 

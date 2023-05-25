@@ -473,6 +473,7 @@ void jl_print_gc_stats(JL_STREAM *s)
 {
 }
 
+#ifdef OBJPROFILE
 void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT
 {
 }
@@ -484,6 +485,7 @@ void objprofile_printall(void)
 void objprofile_reset(void)
 {
 }
+#endif
 
 // gc thread function
 void jl_gc_threadfun(void *arg)
