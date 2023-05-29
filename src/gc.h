@@ -10,6 +10,7 @@
 #ifndef JL_GC_H
 #define JL_GC_H
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -41,12 +42,29 @@ extern void jl_finalize_th(jl_task_t *ct, jl_value_t *o);
 extern jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value);
 extern jl_value_t *jl_gc_big_alloc_inner(jl_ptls_t ptls, size_t sz);
 extern jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int osize);
-extern void jl_rng_split(uint64_t to[4], uint64_t from[4]);
+extern void jl_rng_split(uint64_t to[JL_RNG_SIZE], uint64_t from[JL_RNG_SIZE]);
 extern void gc_premark(jl_ptls_t ptls2);
 extern void *gc_managed_realloc_(jl_ptls_t ptls, void *d, size_t sz, size_t oldsz,
                                  int isaligned, jl_value_t *owner, int8_t can_collect);
 extern size_t jl_array_nbytes(jl_array_t *a);
-extern void objprofile_count(void *ty, int old, int sz);
+
+#ifdef OBJPROFILE
+void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT;
+void objprofile_printall(void);
+void objprofile_reset(void);
+#else
+static inline void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT
+{
+}
+
+static inline void objprofile_printall(void)
+{
+}
+
+static inline void objprofile_reset(void)
+{
+}
+#endif
 
 #define malloc_cache_align(sz) jl_malloc_aligned(sz, JL_CACHE_BYTE_ALIGNMENT)
 #define realloc_cache_align(p, sz, oldsz) jl_realloc_aligned(p, sz, oldsz, JL_CACHE_BYTE_ALIGNMENT)
@@ -69,7 +87,7 @@ extern uint64_t finalizer_rngState[];
 extern int gc_n_threads;
 extern jl_ptls_t* gc_all_tls_states;
 
-// keep in sync with the Julia type of the same name in base/timing.jl
+// This struct must be kept in sync with the Julia type of the same name in base/timing.jl
 typedef struct {
     int64_t     allocd;
     int64_t     deferred_alloc;
@@ -81,7 +99,6 @@ typedef struct {
     uint64_t    freecall;
     uint64_t    total_time;
     uint64_t    total_allocd;
-    uint64_t    since_sweep;
     size_t      interval;
     int         pause;
     int         full_sweep;
@@ -89,6 +106,7 @@ typedef struct {
     uint64_t    max_memory;
     uint64_t    time_to_safepoint;
     uint64_t    max_time_to_safepoint;
+    uint64_t    total_time_to_safepoint;
     uint64_t    sweep_time;
     uint64_t    mark_time;
     uint64_t    total_sweep_time;
@@ -216,26 +234,33 @@ typedef struct {
     jl_alloc_num_t print;
 } jl_gc_debug_env_t;
 
+// Array chunks (work items representing suffixes of
+// large arrays of pointers left to be marked)
+
 typedef enum {
-    GC_empty_chunk,
-    GC_objary_chunk,
-    GC_ary8_chunk,
-    GC_ary16_chunk,
-    GC_finlist_chunk,
+    GC_empty_chunk = 0, // for sentinel representing no items left in chunk queue
+    GC_objary_chunk,    // for chunk of object array
+    GC_ary8_chunk,      // for chunk of array with 8 bit field descriptors
+    GC_ary16_chunk,     // for chunk of array with 16 bit field descriptors
+    GC_finlist_chunk,   // for chunk of finalizer list
 } gc_chunk_id_t;
 
 typedef struct _jl_gc_chunk_t {
     gc_chunk_id_t cid;
-    struct _jl_value_t *parent;
-    struct _jl_value_t **begin;
-    struct _jl_value_t **end;
-    void *elem_begin;
-    void *elem_end;
-    uint32_t step;
-    uintptr_t nptr;
+    struct _jl_value_t *parent; // array owner
+    struct _jl_value_t **begin; // pointer to first element that needs scanning
+    struct _jl_value_t **end;   // pointer to last element that needs scanning
+    void *elem_begin;           // used to scan pointers within objects when marking `ary8` or `ary16`
+    void *elem_end;             // used to scan pointers within objects when marking `ary8` or `ary16`
+    uint32_t step;              // step-size used when marking objarray
+    uintptr_t nptr;             // (`nptr` & 0x1) if array has young element and (`nptr` & 0x2) if array owner is old
 } jl_gc_chunk_t;
 
-#define MAX_REFS_AT_ONCE (1 << 16)
+#define GC_CHUNK_BATCH_SIZE (1 << 16)       // maximum number of references that can be processed
+                                            // without creating a chunk
+
+#define GC_PTR_QUEUE_INIT_SIZE (1 << 18)    // initial size of queue of `jl_value_t *`
+#define GC_CHUNK_QUEUE_INIT_SIZE (1 << 14)  // initial size of chunk-queue
 
 // pool page metadata
 typedef struct {
@@ -270,7 +295,7 @@ typedef struct {
     uint16_t fl_end_offset;   // offset of last free object in this page
     uint16_t thread_n;        // thread id of the heap that owns this page
     char *data;
-    uint8_t *ages;
+    uint32_t *ages;
 } jl_gc_pagemeta_t;
 
 // Page layout:
@@ -453,13 +478,17 @@ STATIC_INLINE void gc_big_object_link(bigval_t *hdr, bigval_t **list) JL_NOTSAFE
     *list = hdr;
 }
 
+extern uv_mutex_t gc_threads_lock;
+extern uv_cond_t gc_threads_cond;
+extern _Atomic(int) gc_n_threads_marking;
 void gc_mark_queue_all_roots(jl_ptls_t ptls, jl_gc_markqueue_t *mq);
 void gc_mark_finlist_(jl_gc_markqueue_t *mq, jl_value_t **fl_begin,
                                     jl_value_t **fl_end) JL_NOTSAFEPOINT;
 void gc_mark_finlist(jl_gc_markqueue_t *mq, arraylist_t *list,
                                    size_t start) JL_NOTSAFEPOINT;
-void gc_mark_loop_(jl_ptls_t ptls, jl_gc_markqueue_t *mq);
-void gc_mark_loop(jl_ptls_t ptls);
+void gc_mark_loop_serial_(jl_ptls_t ptls, jl_gc_markqueue_t *mq);
+void gc_mark_loop_serial(jl_ptls_t ptls);
+void gc_mark_loop_parallel(jl_ptls_t ptls, int master);
 void sweep_stack_pools(void);
 void jl_gc_debug_init(void);
 

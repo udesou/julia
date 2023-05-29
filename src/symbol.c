@@ -35,15 +35,13 @@ static jl_sym_t *mk_symbol(const char *str, size_t len) JL_NOTSAFEPOINT
 {
     jl_sym_t *sym;
     size_t nb = symbol_nbytes(len);
-    assert(jl_symbol_type && "not initialized");
-
     jl_taggedvalue_t *tag = (jl_taggedvalue_t*)jl_gc_perm_alloc_nolock(nb, 0, sizeof(void*), 0);
     sym = (jl_sym_t*)jl_valueof(tag);
     // set to old marked so that we won't look at it in the GC or write barrier.
-    tag->header = ((uintptr_t)jl_symbol_type) | GC_OLD_MARKED;
+    jl_set_typetagof(sym, jl_symbol_tag, GC_OLD_MARKED);
 #ifdef MMTK_GC
     jl_ptls_t ptls = jl_current_task->ptls;
-    post_alloc(ptls->mmtk_mutator_ptr, jl_valueof(tag), nb, 1);
+    mmtk_post_alloc(ptls->mmtk_mutator_ptr, jl_valueof(tag), nb, 1);
 #endif
     jl_atomic_store_relaxed(&sym->left, NULL);
     jl_atomic_store_relaxed(&sym->right, NULL);
