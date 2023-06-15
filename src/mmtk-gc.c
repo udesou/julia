@@ -266,8 +266,17 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     memset(&ptls->gc_num, 0, sizeof(ptls->gc_num));
     jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
 
+    // Create mutator
     MMTk_Mutator mmtk_mutator = mmtk_bind_mutator((void *)ptls, ptls->tid);
-    ptls->mmtk_mutator_ptr = ((MMTkMutatorContext*)mmtk_mutator);
+    // Copy the mutator to the thread local storage
+    memcpy(&ptls->mmtk_mutator, mmtk_mutator, sizeof(MMTkMutatorContext));
+    // Call post_bind to maintain a list of active mutators and to reclaim the old mutator (which is no longer needed)
+    mmtk_post_bind_mutator(&ptls->mmtk_mutator, mmtk_mutator);
+}
+
+void jl_deinit_thread_heap(jl_ptls_t ptls)
+{
+    mmtk_destroy_mutator(&ptls->mmtk_mutator);
 }
 
 // System-wide initialization
@@ -506,7 +515,7 @@ void disable_collection(void)
 JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
 {
     jl_ptls_t ptls = jl_current_task->ptls;
-    mmtk_memory_region_copy(ptls->mmtk_mutator_ptr, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
+    mmtk_memory_region_copy(&ptls->mmtk_mutator, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
 }
 
 // No inline write barrier -- only used for debugging
@@ -524,20 +533,20 @@ JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
 {
     jl_task_t *ct = jl_current_task;
     jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_slow(ptls->mmtk_mutator_ptr, parent, (const void*) 0);
+    mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, (const void*) 0);
 }
 
 JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
 {
     jl_task_t *ct = jl_current_task;
     jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_slow(ptls->mmtk_mutator_ptr, parent, ptr);
+    mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, ptr);
 }
 
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero, unsigned align, unsigned offset)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
-    void* addr = mmtk_alloc(ptls->mmtk_mutator_ptr, sz, align, offset, 1);
+    void* addr = mmtk_alloc(&ptls->mmtk_mutator, sz, align, offset, 1);
     return addr;
 }
 

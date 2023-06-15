@@ -550,7 +550,7 @@ STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
     o->header = tag | GC_OLD_MARKED;
 #ifdef MMTK_GC
     jl_ptls_t ptls = jl_current_task->ptls;
-    mmtk_post_alloc(ptls->mmtk_mutator_ptr, jl_valueof(o), allocsz, 1);
+    mmtk_post_alloc(&ptls->mmtk_mutator, jl_valueof(o), allocsz, 1);
 #endif
     return jl_valueof(o);
 }
@@ -918,6 +918,7 @@ void jl_init_serializer(void);
 void jl_gc_init(void);
 void jl_init_uv(void);
 void jl_init_thread_heap(jl_ptls_t ptls) JL_NOTSAFEPOINT;
+void jl_deinit_thread_heap(jl_ptls_t ptls) JL_NOTSAFEPOINT;
 void jl_init_int32_int64_cache(void);
 JL_DLLEXPORT void jl_init_options(void);
 
