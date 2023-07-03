@@ -348,10 +348,12 @@ void jl_gc_init(void)
     assert(jl_n_gcthreads == jl_options.ngcthreads);
 
     // if only max size is specified initialize MMTk with a fixed size heap
+    // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
+    uintptr_t gcthreads = jl_options.nmarkthreads;
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        mmtk_gc_init(0, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
+        mmtk_gc_init(0, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
     } else {
-        mmtk_gc_init(min_heap_size, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
+        mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)));
     }
 }
 
