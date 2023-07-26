@@ -353,6 +353,17 @@ void jl_gc_init(void)
     // If the two values are the same, we can use either. Otherwise, we need to be careful.
     assert(jl_n_gcthreads == jl_options.ngcthreads);
 
+    // Check that the julia_copy_stack rust feature has been defined when the COPY_STACK has been defined
+    int copy_stacks;
+
+#ifdef COPY_STACKS
+    copy_stacks = 1;
+#else
+    copy_stacks = 0;
+#endif
+
+    mmtk_julia_copy_stack_check(copy_stacks);
+
     // if only max size is specified initialize MMTk with a fixed size heap
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
         mmtk_gc_init(0, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
