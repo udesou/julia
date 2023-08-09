@@ -179,7 +179,7 @@ DOBJS := $(SRCS:%=$(BUILDDIR)/%.dbg.obj)
 ifeq ($(WITH_MMTK), 1)
 MMTK_SRCS := mmtk_julia
 MMTK_OBJS := $(MMTK_SRCS:%=$(MMTK_JULIA_INC)/%.o) $(MMTK_LIB_DST)
-MMTK_DOBJS := $(MMTK_SRCS:%=$(MMTK_JULIA_INC)/%.dbg.obj)
+MMTK_DOBJS := $(MMTK_SRCS:%=$(MMTK_JULIA_INC)/%.dbg.obj) $(MMTK_LIB_DST)
 else
 MMTK_OBJS :=
 MMTK_DOBJS :=
