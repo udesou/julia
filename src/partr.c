@@ -168,6 +168,20 @@ void jl_gc_sweep_threadfun(void *arg)
     }
 }
 
+#else
+
+// gc thread mark function
+void jl_gc_mark_threadfun(void *arg)
+{
+    mmtk_unreachable();
+}
+
+// gc thread sweep function
+void jl_gc_sweep_threadfun(void *arg)
+{
+    mmtk_unreachable();
+}
+
 #endif
 
 // thread function: used by all mutator threads except the main thread

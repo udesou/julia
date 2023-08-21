@@ -350,8 +350,6 @@ void jl_gc_init(void)
         max_heap_size = uv_get_free_memory() * 70 / 100;
     }
 
-    // If the two values are the same, we can use either. Otherwise, we need to be careful.
-    assert(jl_n_gcthreads == jl_options.ngcthreads);
 
     // Check that the julia_copy_stack rust feature has been defined when the COPY_STACK has been defined
     int copy_stacks;
@@ -366,11 +364,12 @@ void jl_gc_init(void)
 
     // if only max size is specified initialize MMTk with a fixed size heap
     // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
+    // If the two values are the same, we can use either. Otherwise, we need to be careful.
     uintptr_t gcthreads = jl_options.nmarkthreads;
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        mmtk_gc_init(0, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
+        mmtk_gc_init(0, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
     } else {
-        mmtk_gc_init(min_heap_size, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
+        mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
     }
 }
 
