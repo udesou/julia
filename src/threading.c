@@ -667,6 +667,12 @@ void jl_init_threading(void)
         }
     }
 
+#ifdef MMTK_GC
+    // MMTk gets the number of GC threads from jl_options.ngcthreads, and spawn its GC threads.
+    // So we just set ngcthreads to 0 here to avoid spawning any GC threads in Julia.
+    ngcthreads = 0;
+#endif
+
     jl_all_tls_states_size = nthreads + nthreadsi + ngcthreads;
     jl_n_threads_per_pool = (int*)malloc_s(2 * sizeof(int));
     jl_n_threads_per_pool[0] = nthreadsi;
@@ -684,11 +690,6 @@ void jl_start_threads(void)
 {
     int nthreads = jl_atomic_load_relaxed(&jl_n_threads);
     int ngcthreads = jl_n_gcthreads;
-#ifdef MMTK_GC
-    // MMTk gets the number of GC threads from jl_options.ngcthreads, and spawn its GC threads.
-    // So we just set ngcthreads to 0 here to avoid spawning any GC threads in Julia.
-    ngcthreads = 0;
-#endif
     int cpumasksize = uv_cpumask_size();
     char *cp;
     int i, exclusive;
