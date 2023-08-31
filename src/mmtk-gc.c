@@ -350,8 +350,8 @@ void jl_gc_init(void)
         max_heap_size = uv_get_free_memory() * 70 / 100;
     }
 
-    // If the two values are the same, we can use either. Otherwise, we need to be careful.
-    assert(jl_n_gcthreads == jl_options.ngcthreads);
+    // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
+    assert(jl_n_gcthreads == 0);
 
     // Check that the julia_copy_stack rust feature has been defined when the COPY_STACK has been defined
     int copy_stacks;
