@@ -302,6 +302,7 @@ typedef struct _jl_code_info_t {
     uint8_t inferred;
     uint8_t propagate_inbounds;
     uint8_t has_fcall;
+    uint8_t nospecializeinfer;
     // uint8 settings
     uint8_t inlining; // 0 = default; 1 = @inline; 2 = @noinline
     uint8_t constprop; // 0 = use heuristic; 1 = aggressive; 2 = none
@@ -359,6 +360,7 @@ typedef struct _jl_method_t {
     // various boolean properties
     uint8_t isva;
     uint8_t is_for_opaque_closure;
+    uint8_t nospecializeinfer;
     // uint8 settings
     uint8_t constprop;      // 0x00 = use heuristic; 0x01 = aggressive; 0x02 = none
     uint8_t max_varargs;    // 0xFF = use heuristic; otherwise, max # of args to expand
@@ -1792,6 +1794,8 @@ JL_DLLIMPORT jl_value_t *jl_get_libllvm(void) JL_NOTSAFEPOINT;
 extern JL_DLLIMPORT int jl_n_threadpools;
 extern JL_DLLIMPORT _Atomic(int) jl_n_threads;
 extern JL_DLLIMPORT int jl_n_gcthreads;
+extern int jl_n_markthreads;
+extern int jl_n_sweepthreads;
 extern JL_DLLIMPORT int *jl_n_threads_per_pool;
 
 // environment entries
@@ -2008,6 +2012,7 @@ JL_DLLEXPORT void jl_sigatomic_end(void);
 // tasks and exceptions -------------------------------------------------------
 
 typedef struct _jl_timing_block_t jl_timing_block_t;
+typedef struct _jl_timing_event_t jl_timing_event_t;
 typedef struct _jl_excstack_t jl_excstack_t;
 
 // info describing an exception handler
@@ -2369,6 +2374,7 @@ typedef struct {
                             // limited, standalone
 
     int safepoint_on_entry; // Emit a safepoint on entry to each function
+    int gcstack_arg; // Pass the ptls value as an argument with swiftself
 
     // Cache access. Default: jl_rettype_inferred.
     jl_codeinstance_lookup_t lookup;
