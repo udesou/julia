@@ -11,6 +11,13 @@ int gc_first_tid;
 
 int64_t live_bytes = 0;
 
+// These should be moved to gc.c
+
+// Number of GC threads that may run parallel marking
+int jl_n_markthreads;
+// Number of GC threads that may run concurrent sweeping (0 or 1)
+int jl_n_sweepthreads;
+
 JL_DLLEXPORT _Atomic(int) jl_gc_have_pending_finalizers = 0;
 
 // mutex for gc-heap-snapshot.

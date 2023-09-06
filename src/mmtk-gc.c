@@ -350,8 +350,7 @@ void jl_gc_init(void)
         max_heap_size = uv_get_free_memory() * 70 / 100;
     }
 
-    // when using mmtk, we don't spawn any stock GC thread
-    // and mmtk should use jl_options.ngcthreads to set the number of workers
+    // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
     assert(jl_n_gcthreads == 0);
 
     // Check that the julia_copy_stack rust feature has been defined when the COPY_STACK has been defined
@@ -366,10 +365,13 @@ void jl_gc_init(void)
     mmtk_julia_copy_stack_check(copy_stacks);
 
     // if only max size is specified initialize MMTk with a fixed size heap
+    // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
+    // If the two values are the same, we can use either. Otherwise, we need to be careful.
+    uintptr_t gcthreads = jl_options.nmarkthreads;
     if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        mmtk_gc_init(0, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
+        mmtk_gc_init(0, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
     } else {
-        mmtk_gc_init(min_heap_size, max_heap_size, jl_options.ngcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
+        mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
     }
 }
 
