@@ -2483,6 +2483,11 @@ STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, vo
     }
 }
 
+STATIC_INLINE void mmtk_non_moving_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
+    // FIXME: do we need to call anything for non moving post alloc?
+}
+
+
 #endif
 
 #ifdef __cplusplus
