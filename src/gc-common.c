@@ -601,6 +601,31 @@ JL_DLLEXPORT int jl_gc_enable(int on)
     return prev;
 }
 
+void jl_gc_wait_for_the_world(jl_ptls_t* gc_all_tls_states, int gc_n_threads)
+{
+    JL_TIMING(GC, GC_Stop);
+#ifdef USE_TRACY
+    TracyCZoneCtx ctx = JL_TIMING_DEFAULT_BLOCK->tracy_ctx;
+    TracyCZoneColor(ctx, 0x696969);
+#endif
+    assert(gc_n_threads);
+    if (gc_n_threads > 1)
+        jl_wake_libuv();
+    for (int i = 0; i < gc_n_threads; i++) {
+        jl_ptls_t ptls2 = gc_all_tls_states[i];
+        if (ptls2 != NULL) {
+            // This acquire load pairs with the release stores
+            // in the signal handler of safepoint so we are sure that
+            // all the stores on those threads are visible.
+            // We're currently also using atomic store release in mutator threads
+            // (in jl_gc_state_set), but we may want to use signals to flush the
+            // memory operations on those threads lazily instead.
+            while (!jl_atomic_load_relaxed(&ptls2->gc_state) || !jl_atomic_load_acquire(&ptls2->gc_state))
+                jl_cpu_pause(); // yield?
+        }
+    }
+}
+
 JL_DLLEXPORT int jl_gc_is_enabled(void)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
