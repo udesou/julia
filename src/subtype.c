@@ -186,7 +186,11 @@ static void re_save_env(jl_stenv_t *e, jl_savedenv_t *se, int root)
         }
         else {
             roots = se->roots;
+#ifdef MMTK_GC
+            nroots = se->gcframe.nroots >> 3;
+#else
             nroots = se->gcframe.nroots >> 2;
+#endif
         }
     }
     jl_varbinding_t *v = e->vars;
@@ -267,7 +271,11 @@ static void restore_env(jl_stenv_t *e, jl_savedenv_t *se, int root) JL_NOTSAFEPO
         }
         else {
             roots = se->roots;
+#ifdef MMTK_GC
+            nroots = se->gcframe.nroots >> 3;
+#else
             nroots = se->gcframe.nroots >> 2;
+#endif
         }
     }
     jl_varbinding_t *v = e->vars;
@@ -3759,7 +3767,11 @@ static int merge_env(jl_stenv_t *e, jl_savedenv_t *se, int count)
     }
     else {
         roots = se->roots;
+#ifdef MMTK_GC
+        nroots = se->gcframe.nroots >> 3;
+#else
         nroots = se->gcframe.nroots >> 2;
+#endif
     }
     int n = 0;
     jl_varbinding_t *v = e->vars;
@@ -3829,7 +3841,11 @@ static void final_merge_env(jl_stenv_t *e, jl_savedenv_t *me, jl_savedenv_t *se)
     else {
         saved = se->roots;
         merged = me->roots;
+#ifdef MMTK_GC
+        nroots = se->gcframe.nroots >> 3;
+#else
         nroots = se->gcframe.nroots >> 2;
+#endif
     }
     assert(nroots == current_env_length(e) * 3);
     assert(nroots % 3 == 0);
