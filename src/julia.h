@@ -10,7 +10,9 @@ extern "C" {
 extern int mmtk_object_is_managed_by_mmtk(void* addr);
 extern unsigned char mmtk_pin_object(void* obj);
 #define PTRHASH_PIN(key)                        \
+    if (mmtk_object_is_managed_by_mmtk(key)) {  \
         mmtk_pin_object(key);                   \
+    }                                           \
 
 #ifdef __cplusplus
 }
