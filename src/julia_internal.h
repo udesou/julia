@@ -495,7 +495,7 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     if (sz <= GC_MAX_SZCLASS) {
         int pool_id = jl_gc_szclass(allocsz);
         int osize = jl_gc_sizeclasses[pool_id];
-        v = jl_mmtk_gc_alloc_default(ptls, pool_id, osize, ty);
+        v = jl_mmtk_gc_alloc_default(ptls, pool_id, allocsz, ty);
     }
     else {
         if (allocsz < sz) // overflow in adding offs, size was "negative"
