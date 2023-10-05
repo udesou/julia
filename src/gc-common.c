@@ -450,16 +450,6 @@ jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset, int osize
     return jl_gc_pool_alloc_inner(ptls, pool_offset, osize);
 }
 
-int jl_gc_classify_pools(size_t sz, int *osize)
-{
-    if (sz > GC_MAX_SZCLASS)
-        return -1;
-    size_t allocsz = sz + sizeof(jl_taggedvalue_t);
-    int klass = jl_gc_szclass(allocsz);
-    *osize = jl_gc_sizeclasses[klass];
-    return (int)(intptr_t)(&((jl_ptls_t)0)->heap.norm_pools[klass]);
-}
-
 // TODO: jl_gc_track_malloced_array needed? Eliminate heap.mallocarrays,
 // heap.mafreelist, mallocarray_t?
 void jl_gc_track_malloced_array(jl_ptls_t ptls, jl_array_t *a) JL_NOTSAFEPOINT
