@@ -2507,15 +2507,15 @@ STATIC_INLINE size_t mmtk_align_alloc_sz(size_t sz) JL_NOTSAFEPOINT
 }
 
 STATIC_INLINE void* bump_alloc_fast(MMTkMutatorContext* mutator, uintptr_t* cursor, uintptr_t limit, size_t size, size_t align, size_t offset, int allocator) {
-    intptr_t delta = (-offset - *cursor) & (align - 1);
-    uintptr_t result = *cursor + (uintptr_t)delta;
+    // intptr_t delta = (-offset - *cursor) & (align - 1);
+    // uintptr_t result = *cursor + (uintptr_t)delta;
 
-    if (__unlikely(result + size > limit)) {
+    // if (__unlikely(result + size > limit)) {
         return (void*) mmtk_alloc(mutator, size, align, offset, allocator);
-    } else{
-        *cursor = result + size;
-        return (void*)result;
-    }
+    // } else{
+    //     *cursor = result + size;
+    //     return (void*)result;
+    // }
 }
 
 STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
