@@ -56,12 +56,11 @@ static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
 // allocation
 int jl_gc_classify_pools(size_t sz, int *osize)
 {
-    if (sz > GC_MAX_SZCLASS)
-        return -1;
+    if (sz > GC_MAX_SZCLASS) 
+        return -1; // call big alloc function
     size_t allocsz = sz + sizeof(jl_taggedvalue_t);
-    int klass = jl_gc_szclass(allocsz);
     *osize = LLT_ALIGN(allocsz, 16);
-    return (int)(intptr_t)(&((jl_ptls_t)0)->heap.norm_pools[klass]);
+    return 0; // use MMTk's fastpath logic
 }
 
 // malloc wrappers, aligned allocation
