@@ -56,7 +56,7 @@ static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
 // allocation
 int jl_gc_classify_pools(size_t sz, int *osize)
 {
-    if (sz > GC_MAX_SZCLASS) 
+    if (sz > GC_MAX_SZCLASS)
         return -1; // call big alloc function
     size_t allocsz = sz + sizeof(jl_taggedvalue_t);
     *osize = LLT_ALIGN(allocsz, 16);
