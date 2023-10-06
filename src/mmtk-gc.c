@@ -167,7 +167,7 @@ inline jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int o
     // TODO: drop this okay?
     // maybe_collect(ptls);
 
-    jl_value_t *v = jl_mmtk_gc_alloc_default(ptls, osize, NULL);
+    jl_value_t *v = jl_mmtk_gc_alloc_default(ptls, osize, 16, NULL);
     // TODO: this is done (without atomic operations) in jl_mmtk_gc_alloc_default; enable
     // here when that's edited?
     /*
