@@ -120,6 +120,12 @@ namespace jl_intrinsics {
     static const char *QUEUE_GC_ROOT_NAME = "julia.queue_gc_root";
     static const char *QUEUE_GC_BINDING_NAME = "julia.queue_gc_binding";
     static const char *SAFEPOINT_NAME = "julia.safepoint";
+#ifdef MMTK_GC
+    static const char *WRITE_BARRIER_1_NAME = "julia.write_barrier1_noinline";
+    static const char *WRITE_BARRIER_2_NAME = "julia.write_barrier2_noinline";
+    static const char *WRITE_BARRIER_1_SLOW_NAME = "julia.write_barrier_1_slow";
+    static const char *WRITE_BARRIER_2_SLOW_NAME = "julia.write_barrier_2_slow";
+#endif
 
     static auto T_size_t(const JuliaPassContext &context) {
         return sizeof(size_t) == sizeof(uint32_t) ?
@@ -246,6 +252,64 @@ namespace jl_intrinsics {
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
             return intrinsic;
         });
+#ifdef MMTK_GC
+    const IntrinsicDescription writeBarrier1(
+        WRITE_BARRIER_1_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_1_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
+    const IntrinsicDescription writeBarrier2(
+        WRITE_BARRIER_2_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue, T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_2_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
+    const IntrinsicDescription writeBarrier1Slow(
+        WRITE_BARRIER_1_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_1_SLOW_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
+    const IntrinsicDescription writeBarrier2Slow(
+        WRITE_BARRIER_2_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto intrinsic = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue, T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                WRITE_BARRIER_2_SLOW_NAME);
+            intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return intrinsic;
+        });
+#endif
 }
 
 namespace jl_well_known {
@@ -254,6 +318,12 @@ namespace jl_well_known {
     static const char *GC_QUEUE_ROOT_NAME = XSTR(jl_gc_queue_root);
     static const char *GC_QUEUE_BINDING_NAME = XSTR(jl_gc_queue_binding);
     static const char *GC_ALLOC_TYPED_NAME = XSTR(jl_gc_alloc_typed);
+#ifdef MMTK_GC
+    static const char *GC_WB_1_NAME = XSTR(jl_gc_wb1_noinline);
+    static const char *GC_WB_2_NAME = XSTR(jl_gc_wb2_noinline);
+    static const char *GC_WB_1_SLOW_NAME = XSTR(jl_gc_wb1_slow);
+    static const char *GC_WB_2_SLOW_NAME = XSTR(jl_gc_wb2_slow);
+#endif
 
     static auto T_size_t(const JuliaPassContext &context) {
         return sizeof(size_t) == sizeof(uint32_t) ?
@@ -336,4 +406,66 @@ namespace jl_well_known {
             allocTypedFunc->addFnAttr(Attribute::getWithAllocSizeArgs(context.getLLVMContext(), 1, None));
             return addGCAllocAttributes(allocTypedFunc, context.getLLVMContext());
         });
+
+#ifdef MMTK_GC
+    const WellKnownFunctionDescription GCWriteBarrier1(
+        GC_WB_1_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_1_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+
+    const WellKnownFunctionDescription GCWriteBarrier2(
+        GC_WB_2_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue, T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_2_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+
+    const WellKnownFunctionDescription GCWriteBarrier1Slow(
+        GC_WB_1_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_1_SLOW_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+
+    const WellKnownFunctionDescription GCWriteBarrier2Slow(
+        GC_WB_2_SLOW_NAME,
+        [](const JuliaPassContext &context) {
+            auto T_prjlvalue = JuliaType::get_prjlvalue_ty(context.getLLVMContext());
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_prjlvalue, T_prjlvalue },
+                    false),
+                Function::ExternalLinkage,
+                GC_WB_2_SLOW_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+    });
+#endif
 }

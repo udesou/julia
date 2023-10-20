@@ -318,6 +318,8 @@ void print_func_loc(JL_STREAM *s, jl_method_t *m);
 extern jl_array_t *_jl_debug_method_invalidation JL_GLOBALLY_ROOTED;
 JL_DLLEXPORT extern arraylist_t jl_linkage_blobs; // external linkage: sysimg/pkgimages
 JL_DLLEXPORT extern arraylist_t jl_image_relocs;  // external linkage: sysimg/pkgimages
+extern arraylist_t eytzinger_image_tree;
+extern arraylist_t eytzinger_idxs;
 
 extern JL_DLLEXPORT size_t jl_page_size;
 extern jl_function_t *jl_typeinf_func JL_GLOBALLY_ROOTED;
@@ -328,9 +330,17 @@ extern jl_array_t *jl_all_methods JL_GLOBALLY_ROOTED;
 JL_DLLEXPORT extern int jl_lineno;
 JL_DLLEXPORT extern const char *jl_filename;
 
+extern void enable_collection(void);
+extern void disable_collection(void);
 jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
+#ifdef MMTK_GC
+JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
+JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
+JL_DLLIMPORT extern void mmtk_post_alloc(void* mutator, void* obj, size_t bytes, int allocator);
+JL_DLLIMPORT extern void mmtk_initialize_collection(void* tls);
+#endif // MMTK_GC
 JL_DLLEXPORT int jl_gc_classify_pools(size_t sz, int *osize);
 extern uv_mutex_t gc_perm_lock;
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero,
@@ -448,6 +458,7 @@ STATIC_INLINE uint8_t JL_CONST_FUNC jl_gc_szclass_align8(unsigned sz)
 #define GC_MAX_SZCLASS (2032-sizeof(void*))
 static_assert(ARRAY_CACHE_ALIGN_THRESHOLD > GC_MAX_SZCLASS, "");
 
+#ifndef MMTK_GC
 STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
 {
     jl_value_t *v;
@@ -469,6 +480,28 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     maybe_record_alloc_to_profile(v, sz, (jl_datatype_t*)ty);
     return v;
 }
+
+#else  // MMTK_GC
+
+STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
+{
+    jl_value_t *v;
+    const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+    if (sz <= GC_MAX_SZCLASS) {
+        int pool_id = jl_gc_szclass(allocsz);
+        int osize = jl_gc_sizeclasses[pool_id];
+        v = jl_mmtk_gc_alloc_default(ptls, pool_id, osize, ty);
+    }
+    else {
+        if (allocsz < sz) // overflow in adding offs, size was "negative"
+            jl_throw(jl_memory_exception);
+        v = jl_mmtk_gc_alloc_big(ptls, allocsz);
+    }
+    jl_set_typeof(v, ty);
+    maybe_record_alloc_to_profile(v, sz, (jl_datatype_t*)ty);
+    return v;
+}
+#endif // MMTK_GC
 
 /* Programming style note: When using jl_gc_alloc, do not JL_GC_PUSH it into a
  * gc frame, until it has been fully initialized. An uninitialized value in a
@@ -506,8 +539,13 @@ STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
                                                  sizeof(void*) * 2 : 16));
     jl_taggedvalue_t *o = (jl_taggedvalue_t*)jl_gc_perm_alloc(allocsz, 0, align,
                                                               sizeof(void*) % align);
+    // Possibly we do not need this for MMTk. We could declare a post_alloc func and define it differently in two GCs.
     uintptr_t tag = (uintptr_t)ty;
     o->header = tag | GC_OLD_MARKED;
+#ifdef MMTK_GC
+    jl_ptls_t ptls = jl_current_task->ptls;
+    mmtk_immortal_post_alloc_fast(&ptls->mmtk_mutator, jl_valueof(o), allocsz);
+#endif
     return jl_valueof(o);
 }
 jl_value_t *jl_permbox8(jl_datatype_t *t, int8_t x);
@@ -552,7 +590,6 @@ JL_DLLEXPORT void *jl_gc_counted_malloc(size_t sz);
 
 JL_DLLEXPORT void JL_NORETURN jl_throw_out_of_memory_error(void);
 
-
 JL_DLLEXPORT int64_t jl_gc_diff_total_bytes(void) JL_NOTSAFEPOINT;
 JL_DLLEXPORT int64_t jl_gc_sync_total_bytes(int64_t offset) JL_NOTSAFEPOINT;
 void jl_gc_track_malloced_array(jl_ptls_t ptls, jl_array_t *a) JL_NOTSAFEPOINT;
@@ -567,6 +604,7 @@ void jl_gc_set_max_memory(uint64_t max_mem);
 JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd) JL_NOTSAFEPOINT;
 void gc_setmark_buf(jl_ptls_t ptls, void *buf, uint8_t, size_t) JL_NOTSAFEPOINT;
 
+#ifndef MMTK_GC
 STATIC_INLINE void jl_gc_wb_binding(jl_binding_t *bnd, void *val) JL_NOTSAFEPOINT // val isa jl_value_t*
 {
     if (__unlikely(jl_astaggedvalue(bnd)->bits.gc == 3 &&
@@ -582,6 +620,18 @@ STATIC_INLINE void jl_gc_wb_buf(void *parent, void *bufptr, size_t minsz) JL_NOT
         gc_setmark_buf(ct->ptls, bufptr, 3, minsz);
     }
 }
+#else  // MMTK_GC
+
+STATIC_INLINE void jl_gc_wb_binding(jl_binding_t *bnd, void *val) JL_NOTSAFEPOINT // val isa jl_value_t*
+{
+    mmtk_gc_wb(bnd, val);
+}
+
+STATIC_INLINE void jl_gc_wb_buf(void *parent, void *bufptr, size_t minsz) JL_NOTSAFEPOINT // parent isa jl_value_t*
+{
+    mmtk_gc_wb(parent, (void*)0);
+}
+#endif // MMTK_GC
 
 void jl_gc_debug_print_status(void) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_debug_critical_error(void) JL_NOTSAFEPOINT;

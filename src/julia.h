@@ -934,6 +934,7 @@ JL_DLLEXPORT void jl_clear_malloc_data(void);
 JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *root) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *root, const jl_value_t *stored) JL_NOTSAFEPOINT;
 
+#ifndef MMTK_GC
 STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     // parent and ptr isa jl_value_t*
@@ -962,6 +963,24 @@ STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_
     if (ly->npointers)
         jl_gc_queue_multiroot((jl_value_t*)parent, ptr);
 }
+#else  // MMTK_GC
+STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT;
+
+STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb(parent, ptr);
+}
+
+STATIC_INLINE void jl_gc_wb_back(const void *ptr) JL_NOTSAFEPOINT // ptr isa jl_value_t*
+{
+    mmtk_gc_wb(ptr, (void*)0);
+}
+
+STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb(parent, (void*)0);
+}
+#endif // MMTK_GC
 
 JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz);
 JL_DLLEXPORT void *jl_gc_managed_realloc(void *d, size_t sz, size_t oldsz,
@@ -2260,6 +2279,106 @@ typedef struct {
     jl_value_t *generic_context;
 } jl_cgparams_t;
 extern JL_DLLEXPORT int jl_default_debug_info_kind;
+
+#ifdef MMTK_GC
+extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
+extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
+extern void* mmtk_alloc(void* mutator, size_t size, size_t align, size_t offset, int allocator);
+
+extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
+
+// These need to be constants.
+
+#define MMTK_OBJECT_BARRIER (1)
+// Stickyimmix needs write barrier. Immix does not need write barrier.
+#ifdef MMTK_PLAN_IMMIX
+#define MMTK_NEEDS_WRITE_BARRIER (0)
+#endif
+#ifdef MMTK_PLAN_STICKYIMMIX
+#define MMTK_NEEDS_WRITE_BARRIER (1)
+#endif
+
+#define MMTK_DEFAULT_IMMIX_ALLOCATOR (0)
+#define MMTK_IMMORTAL_BUMP_ALLOCATOR (0)
+
+// Directly call into MMTk for write barrier (debugging only)
+STATIC_INLINE void mmtk_gc_wb_full(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_post(&ptls->mmtk_mutator, parent, ptr);
+}
+
+// Inlined fastpath
+STATIC_INLINE void mmtk_gc_wb_fast(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
+        intptr_t addr = (intptr_t) (void*) parent;
+        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
+        intptr_t shift = (addr >> 3) & 0b111;
+        uint8_t byte_val = *meta_addr;
+        if (((byte_val >> shift) & 1) == 1) {
+            jl_task_t *ct = jl_current_task;
+            jl_ptls_t ptls = ct->ptls;
+            mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, ptr);
+        }
+    }
+}
+
+STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb_fast(parent, ptr);
+}
+
+#define MMTK_MIN_ALIGNMENT 4
+// MMTk assumes allocation size is aligned to min alignment.
+STATIC_INLINE size_t mmtk_align_alloc_sz(size_t sz) JL_NOTSAFEPOINT
+{
+    return (sz + MMTK_MIN_ALIGNMENT - 1) & ~(MMTK_MIN_ALIGNMENT - 1);
+}
+
+STATIC_INLINE void* bump_alloc_fast(MMTkMutatorContext* mutator, uintptr_t* cursor, uintptr_t limit, size_t size, size_t align, size_t offset, int allocator) {
+    intptr_t delta = (-offset - *cursor) & (align - 1);
+    uintptr_t result = *cursor + (uintptr_t)delta;
+
+    if (__unlikely(result + size > limit)) {
+        return (void*) mmtk_alloc(mutator, size, align, offset, allocator);
+    } else{
+        *cursor = result + size;
+        return (void*)result;
+    }
+}
+
+STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
+    ImmixAllocator* allocator = &mutator->allocators.immix[MMTK_DEFAULT_IMMIX_ALLOCATOR];
+    return bump_alloc_fast(mutator, (uintptr_t*)&allocator->cursor, (intptr_t)allocator->limit, size, align, offset, 0);
+}
+
+STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
+    // We do not need post alloc for immix objects in immix/stickyimmix
+}
+
+STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
+    BumpAllocator* allocator = &mutator->allocators.bump_pointer[MMTK_IMMORTAL_BUMP_ALLOCATOR];
+    return bump_alloc_fast(mutator, (uintptr_t*)&allocator->cursor, (uintptr_t)allocator->limit, size, align, offset, 1);
+}
+
+STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
+    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
+        intptr_t addr = (intptr_t) obj;
+        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
+        intptr_t shift = (addr >> 3) & 0b111;
+        while(1) {
+            uint8_t old_val = *meta_addr;
+            uint8_t new_val = old_val | (1 << shift);
+            if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
+                break;
+            }
+        }
+    }
+}
+
+#endif
 
 #ifdef __cplusplus
 }

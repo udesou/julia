@@ -4,6 +4,10 @@
 #ifndef JL_THREADS_H
 #define JL_THREADS_H
 
+#ifdef MMTK_GC
+#include "mmtkMutator.h"
+#endif
+
 #include "work-stealing-queue.h"
 #include "julia_atomics.h"
 #ifndef _OS_WINDOWS_
@@ -283,6 +287,11 @@ typedef struct _jl_tls_states_t {
         uint64_t sleep_enter;
         uint64_t sleep_leave;
     )
+
+#ifdef MMTK_GC
+    MMTkMutatorContext mmtk_mutator;
+    size_t malloc_sz_since_last_poll;
+#endif
 
     // some hidden state (usually just because we don't have the type's size declaration)
 #ifdef LIBRARY_EXPORTS

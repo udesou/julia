@@ -342,8 +342,12 @@ jl_ptls_t jl_init_threadtls(int16_t tid)
 #endif
     ptls->system_id = uv_thread_self();
     ptls->rngseed = jl_rand();
-    if (tid == 0)
+    if (tid == 0) {
         ptls->disable_gc = 1;
+#ifdef MMTK_GC
+        disable_collection();
+#endif
+    }
 #ifdef _OS_WINDOWS_
     if (tid == 0) {
         if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
@@ -634,6 +638,12 @@ void jl_init_threading(void)
             ngcthreads = nthreads - 1;
         }
     }
+
+#ifdef MMTK_GC
+    // MMTk gets the number of GC threads from jl_options.ngcthreads, and spawn its GC threads.
+    // So we just set ngcthreads to 0 here to avoid spawning any GC threads in Julia.
+    ngcthreads = 0;
+#endif
 
     jl_all_tls_states_size = nthreads + nthreadsi + ngcthreads;
     jl_n_threads_per_pool = (int*)malloc_s(2 * sizeof(int));

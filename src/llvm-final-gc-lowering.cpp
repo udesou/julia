@@ -51,6 +51,12 @@ private:
     Function *poolAllocFunc;
     Function *bigAllocFunc;
     Function *allocTypedFunc;
+#ifdef MMTK_GC
+    Function *writeBarrier1Func;
+    Function *writeBarrier2Func;
+    Function *writeBarrier1SlowFunc;
+    Function *writeBarrier2SlowFunc;
+#endif
     Instruction *pgcstack;
 
     // Lowers a `julia.new_gc_frame` intrinsic.
@@ -76,6 +82,13 @@ private:
 
     // Lowers a `julia.safepoint` intrinsic.
     Value *lowerSafepoint(CallInst *target, Function &F);
+
+#ifdef MMTK_GC
+    Value *lowerWriteBarrier1(CallInst *target, Function &F);
+    Value *lowerWriteBarrier2(CallInst *target, Function &F);
+    Value *lowerWriteBarrier1Slow(CallInst *target, Function &F);
+    Value *lowerWriteBarrier2Slow(CallInst *target, Function &F);
+#endif
 };
 
 Value *FinalLowerGC::lowerNewGCFrame(CallInst *target, Function &F)
@@ -218,6 +231,36 @@ Value *FinalLowerGC::lowerSafepoint(CallInst *target, Function &F)
     return load;
 }
 
+#ifdef MMTK_GC
+Value *FinalLowerGC::lowerWriteBarrier1(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 1);
+    target->setCalledFunction(writeBarrier1Func);
+    return target;
+}
+
+Value *FinalLowerGC::lowerWriteBarrier2(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 2);
+    target->setCalledFunction(writeBarrier2Func);
+    return target;
+}
+
+Value *FinalLowerGC::lowerWriteBarrier1Slow(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 1);
+    target->setCalledFunction(writeBarrier1SlowFunc);
+    return target;
+}
+
+Value *FinalLowerGC::lowerWriteBarrier2Slow(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 2);
+    target->setCalledFunction(writeBarrier2SlowFunc);
+    return target;
+}
+#endif
+
 Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
 {
     ++GCAllocBytesCount;
@@ -242,10 +285,94 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
             derefAttr = Attribute::getWithDereferenceableBytes(F.getContext(), sz + sizeof(void*));
         }
         else {
+        #ifndef MMTK_GC
             auto pool_offs = ConstantInt::get(Type::getInt32Ty(F.getContext()), offset);
             auto pool_osize = ConstantInt::get(Type::getInt32Ty(F.getContext()), osize);
             newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize, type });
             derefAttr = Attribute::getWithDereferenceableBytes(F.getContext(), osize);
+        #else // MMTK_GC
+            auto pool_osize_i32 = ConstantInt::get(Type::getInt32Ty(F.getContext()), osize);
+            auto pool_osize = ConstantInt::get(Type::getInt64Ty(F.getContext()), osize);
+
+            // Should we generate fastpath allocation sequence here? We should always generate fastpath here for MMTk.
+            // Setting this to false will increase allocation overhead a lot, and should only be used for debugging.
+            const bool INLINE_FASTPATH_ALLOCATION = true;
+
+            if (INLINE_FASTPATH_ALLOCATION) {
+                // Assuming we use the first immix allocator.
+                // FIXME: We should get the allocator index and type from MMTk.
+                auto allocator_offset = offsetof(jl_tls_states_t, mmtk_mutator) + offsetof(MMTkMutatorContext, allocators) + offsetof(Allocators, immix);
+
+                auto cursor_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), allocator_offset + offsetof(ImmixAllocator, cursor));
+                auto limit_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()),  allocator_offset + offsetof(ImmixAllocator, limit));
+
+                auto cursor_tls_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, cursor_pos);
+                auto cursor_ptr = builder.CreateBitCast(cursor_tls_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "cursor_ptr");
+                auto cursor = builder.CreateLoad(Type::getInt64Ty(target->getContext()), cursor_ptr, "cursor");
+
+                // offset = 8
+                auto delta_offset = builder.CreateNSWSub(ConstantInt::get(Type::getInt64Ty(target->getContext()), 0), ConstantInt::get(Type::getInt64Ty(target->getContext()), 8));
+                auto delta_cursor = builder.CreateNSWSub(ConstantInt::get(Type::getInt64Ty(target->getContext()), 0), cursor);
+                auto delta_op = builder.CreateNSWAdd(delta_offset, delta_cursor);
+                // alignment 16 (15 = 16 - 1)
+                auto delta = builder.CreateAnd(delta_op, ConstantInt::get(Type::getInt64Ty(target->getContext()), 15), "delta");
+                auto result = builder.CreateNSWAdd(cursor, delta, "result");
+
+                auto new_cursor = builder.CreateNSWAdd(result, pool_osize);
+
+                auto limit_tls_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, limit_pos);
+                auto limit_ptr = builder.CreateBitCast(limit_tls_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "limit_ptr");
+                auto limit = builder.CreateLoad(Type::getInt64Ty(target->getContext()), limit_ptr, "limit");
+
+                auto gt_limit = builder.CreateICmpSGT(new_cursor, limit);
+
+                auto current_block = target->getParent();
+                builder.SetInsertPoint(target->getNextNode());
+                auto phiNode = builder.CreatePHI(poolAllocFunc->getReturnType(), 2, "phi_fast_slow");
+                auto top_cont = current_block->splitBasicBlock(target->getNextNode(), "top_cont");
+
+                auto slowpath = BasicBlock::Create(target->getContext(), "slowpath", target->getFunction());
+                auto fastpath = BasicBlock::Create(target->getContext(), "fastpath", target->getFunction(), top_cont);
+
+                auto next_br = current_block->getTerminator();
+                next_br->eraseFromParent();
+                builder.SetInsertPoint(current_block);
+                builder.CreateCondBr(gt_limit, slowpath, fastpath);
+
+                // slowpath
+                builder.SetInsertPoint(slowpath);
+                auto pool_offs = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
+                auto new_call = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize_i32, type });
+                new_call->setAttributes(new_call->getCalledFunction()->getAttributes());
+                builder.CreateBr(top_cont);
+
+                // // fastpath
+                builder.SetInsertPoint(fastpath);
+                builder.CreateStore(new_cursor, cursor_ptr);
+
+                // ptls->gc_num.allocd += osize;
+                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_num));
+                auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
+                auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
+                auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
+                auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
+                builder.CreateStore(pool_allocd_total, pool_alloc_tls);
+
+                auto v_raw = builder.CreateNSWAdd(result, ConstantInt::get(Type::getInt64Ty(target->getContext()), sizeof(jl_taggedvalue_t)));
+                auto v_as_ptr = builder.CreateIntToPtr(v_raw, poolAllocFunc->getReturnType());
+                builder.CreateBr(top_cont);
+
+                phiNode->addIncoming(new_call, slowpath);
+                phiNode->addIncoming(v_as_ptr, fastpath);
+                phiNode->takeName(target);
+
+                return phiNode;
+            } else {
+                auto pool_offs = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
+                newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize_i32 });
+                derefAttr = Attribute::getWithDereferenceableBytes(F.getContext(), osize);
+            }
+        #endif // MMTK_GC
         }
     } else {
         auto size = builder.CreateZExtOrTrunc(target->getArgOperand(1), getSizeTy(F.getContext()));
@@ -268,8 +395,15 @@ bool FinalLowerGC::doInitialization(Module &M) {
     poolAllocFunc = getOrDeclare(jl_well_known::GCPoolAlloc);
     bigAllocFunc = getOrDeclare(jl_well_known::GCBigAlloc);
     allocTypedFunc = getOrDeclare(jl_well_known::GCAllocTyped);
-
+#ifdef MMTK_GC
+    writeBarrier1Func = getOrDeclare(jl_well_known::GCWriteBarrier1);
+    writeBarrier2Func = getOrDeclare(jl_well_known::GCWriteBarrier2);
+    writeBarrier1SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier1Slow);
+    writeBarrier2SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier2Slow);
+    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, writeBarrier1Func, writeBarrier2Func, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
+#else
     GlobalValue *functionList[] = {queueRootFunc, queueBindingFunc, poolAllocFunc, bigAllocFunc, allocTypedFunc};
+#endif
     unsigned j = 0;
     for (unsigned i = 0; i < sizeof(functionList) / sizeof(void*); i++) {
         if (!functionList[i])
@@ -285,8 +419,13 @@ bool FinalLowerGC::doInitialization(Module &M) {
 
 bool FinalLowerGC::doFinalization(Module &M)
 {
+#ifdef MMTK_GC
+    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, writeBarrier1Func, writeBarrier2Func, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
+    queueRootFunc = poolAllocFunc = bigAllocFunc = writeBarrier1Func = writeBarrier2Func = writeBarrier1SlowFunc = writeBarrier2SlowFunc = nullptr;
+#else
     GlobalValue *functionList[] = {queueRootFunc, queueBindingFunc, poolAllocFunc, bigAllocFunc, allocTypedFunc};
     queueRootFunc = queueBindingFunc = poolAllocFunc = bigAllocFunc = allocTypedFunc = nullptr;
+#endif
     auto used = M.getGlobalVariable("llvm.compiler.used");
     if (!used)
         return false;
@@ -357,6 +496,13 @@ bool FinalLowerGC::runOnFunction(Function &F)
     auto queueGCRootFunc = getOrNull(jl_intrinsics::queueGCRoot);
     auto queueGCBindingFunc = getOrNull(jl_intrinsics::queueGCBinding);
     auto safepointFunc = getOrNull(jl_intrinsics::safepoint);
+#ifdef MMTK_GC
+    auto writeBarrier1Func = getOrNull(jl_intrinsics::writeBarrier1);
+    auto writeBarrier2Func = getOrNull(jl_intrinsics::writeBarrier2);
+    auto writeBarrier1SlowFunc = getOrNull(jl_intrinsics::writeBarrier1Slow);
+    auto writeBarrier2SlowFunc = getOrNull(jl_intrinsics::writeBarrier2Slow);
+#endif
+
 
     // Lower all calls to supported intrinsics.
     for (BasicBlock &BB : F) {
@@ -390,6 +536,20 @@ bool FinalLowerGC::runOnFunction(Function &F)
             else if (callee == queueGCRootFunc) {
                 replaceInstruction(CI, lowerQueueGCRoot(CI, F), it);
             }
+#ifdef MMTK_GC
+            else if (callee == writeBarrier1Func) {
+                replaceInstruction(CI, lowerWriteBarrier1(CI, F), it);
+            }
+            else if (callee == writeBarrier2Func) {
+                replaceInstruction(CI, lowerWriteBarrier2(CI, F), it);
+            }
+            else if (callee == writeBarrier1SlowFunc) {
+                replaceInstruction(CI, lowerWriteBarrier1Slow(CI, F), it);
+            }
+            else if (callee == writeBarrier2SlowFunc) {
+                replaceInstruction(CI, lowerWriteBarrier2Slow(CI, F), it);
+            }
+#endif
             else if (callee == queueGCBindingFunc) {
                 replaceInstruction(CI, lowerQueueGCBinding(CI, F), it);
             }

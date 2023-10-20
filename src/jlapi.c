@@ -124,7 +124,8 @@ JL_DLLEXPORT jl_value_t *jl_eval_string(const char *str)
 JL_DLLEXPORT jl_value_t *jl_current_exception(void) JL_GLOBALLY_ROOTED JL_NOTSAFEPOINT
 {
     jl_excstack_t *s = jl_current_task->excstack;
-    return s && s->top != 0 ? jl_excstack_exception(s, s->top) : jl_nothing;
+    jl_value_t * result = s && s->top != 0 ? jl_excstack_exception(s, s->top) : jl_nothing;
+    return result;
 }
 
 JL_DLLEXPORT jl_value_t *jl_exception_occurred(void)

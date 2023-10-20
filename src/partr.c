@@ -108,15 +108,19 @@ void jl_init_threadinginfra(void)
 
 void JL_NORETURN jl_finish_task(jl_task_t *t);
 
+#ifndef MMTK_GC
+
 static inline int may_mark(void) JL_NOTSAFEPOINT
 {
     return (jl_atomic_load(&gc_n_threads_marking) > 0);
 }
 
+
 static inline int may_sweep(jl_ptls_t ptls) JL_NOTSAFEPOINT
 {
     return (jl_atomic_load(&ptls->gc_sweeps_requested) > 0);
 }
+
 
 // gc thread function
 void jl_gc_threadfun(void *arg)
@@ -148,6 +152,8 @@ void jl_gc_threadfun(void *arg)
         }
     }
 }
+
+#endif
 
 // thread function: used by all mutator threads except the main thread
 void jl_threadfun(void *arg)
