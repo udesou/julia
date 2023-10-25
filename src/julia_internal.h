@@ -349,6 +349,8 @@ void *jl_gc_perm_alloc(size_t sz, int zero,
     unsigned align, unsigned offset) JL_NOTSAFEPOINT;
 void gc_sweep_sysimg(void);
 
+void jl_gc_notify_image_load(const char* img_data, size_t len);
+void jl_gc_notify_image_alloc(char* img_data, size_t len);
 
 // pools are 16376 bytes large (GC_POOL_SZ - GC_PAGE_OFFSET)
 static const int jl_gc_sizeclasses[] = {

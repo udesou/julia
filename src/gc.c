@@ -3150,6 +3150,16 @@ void *jl_gc_perm_alloc(size_t sz, int zero, unsigned align, unsigned offset)
     return p;
 }
 
+void jl_gc_notify_image_load(const char* img_data, size_t len)
+{
+    // Do nothing
+}
+
+void jl_gc_notify_image_alloc(char* img_data, size_t len)
+{
+    // Do nothing
+}
+
 JL_DLLEXPORT int jl_gc_enable_conservative_gc_support(void)
 {
     if (jl_is_initialized()) {
