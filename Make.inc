@@ -770,7 +770,7 @@ endif
 MMTK_LIB_SRC := $(MMTK_DIR)/target/$(MMTK_BUILD)/$(MMTK_LIB_NAME)
 MMTK_LIB_DST := $(BUILDROOT)/usr/lib/$(MMTK_LIB_NAME)
 MMTK_LIB := -lmmtk_julia
-LDFLAGS += -Wl,-rpath=$(MMTK_DIR)/target/$(MMTK_BUILD)/
+LDFLAGS += -Wl,-rpath=$(BUILDROOT)/usr/lib/ -L$(BUILDROOT)/usr/lib/
 else
 MMTK_JULIA_INC :=
 MMTK_LIB :=
