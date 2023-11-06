@@ -233,9 +233,6 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
     mmtk_handle_user_collection_request(ptls, collection);
 }
 
-// Per-thread initialization
-// TODO: remove `norm_pools`, `weak_refs`, etc. from `heap`?
-// TODO: remove `gc_cache`?
 void jl_init_thread_heap(jl_ptls_t ptls)
 {
     jl_thread_heap_t *heap = &ptls->heap;
@@ -247,9 +244,12 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     }
     small_arraylist_new(&heap->weak_refs, 0);
     small_arraylist_new(&heap->live_tasks, 0);
+    for (int i = 0; i < JL_N_STACK_POOLS; i++)
+        small_arraylist_new(&heap->free_stacks[i], 0);
     heap->mallocarrays = NULL;
     heap->mafreelist = NULL;
     heap->big_objects = NULL;
+    arraylist_new(&heap->rem_bindings, 0);
     heap->remset = &heap->_remset[0];
     heap->last_remset = &heap->_remset[1];
     arraylist_new(heap->remset, 0);
@@ -264,9 +264,6 @@ void jl_init_thread_heap(jl_ptls_t ptls)
 
     memset(&ptls->gc_num, 0, sizeof(ptls->gc_num));
     jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
-
-    // Clear the malloc sz count
-    jl_atomic_store_relaxed(&ptls->malloc_sz_since_last_poll, 0);
 
     // Create mutator
     MMTk_Mutator mmtk_mutator = mmtk_bind_mutator((void *)ptls, ptls->tid);
