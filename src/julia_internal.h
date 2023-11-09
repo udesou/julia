@@ -635,6 +635,8 @@ STATIC_INLINE void jl_gc_wb_buf(void *parent, void *bufptr, size_t minsz) JL_NOT
 }
 #endif // MMTK_GC
 
+JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT;
+
 void jl_gc_debug_print_status(void) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_debug_critical_error(void) JL_NOTSAFEPOINT;
 void jl_print_gc_stats(JL_STREAM *s);
@@ -1293,7 +1295,7 @@ STATIC_INLINE size_t jl_excstack_next(jl_excstack_t *stack, size_t itr) JL_NOTSA
     return itr-2 - jl_excstack_bt_size(stack, itr);
 }
 // Exception stack manipulation
-void jl_push_excstack(jl_excstack_t **stack JL_REQUIRE_ROOTED_SLOT JL_ROOTING_ARGUMENT,
+void jl_push_excstack(jl_task_t* task, jl_excstack_t **stack JL_REQUIRE_ROOTED_SLOT JL_ROOTING_ARGUMENT,
                       jl_value_t *exception JL_ROOTED_ARGUMENT,
                       jl_bt_element_t *bt_data, size_t bt_size);
 

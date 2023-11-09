@@ -126,6 +126,72 @@ JL_DLLEXPORT void jl_gc_set_cb_notify_external_free(jl_gc_cb_notify_external_fre
         jl_gc_deregister_callback(&gc_cblist_notify_external_free, (jl_gc_cb_func_t)cb);
 }
 
+
+// Copy element by element until we hit a young object, at which point
+// we can finish by using `memmove`.
+static NOINLINE ssize_t jl_array_ptr_copy_forward(jl_value_t *owner,
+                                                  void **src_p, void **dest_p,
+                                                  ssize_t n) JL_NOTSAFEPOINT
+{
+    _Atomic(void*) *src_pa = (_Atomic(void*)*)src_p;
+    _Atomic(void*) *dest_pa = (_Atomic(void*)*)dest_p;
+    for (ssize_t i = 0; i < n; i++) {
+        void *val = jl_atomic_load_relaxed(src_pa + i);
+        jl_atomic_store_release(dest_pa + i, val);
+        // `val` is young or old-unmarked
+        if (val && !(jl_astaggedvalue(val)->bits.gc & GC_MARKED)) {
+            jl_gc_queue_root(owner);
+            return i;
+        }
+    }
+    return n;
+}
+
+static NOINLINE ssize_t jl_array_ptr_copy_backward(jl_value_t *owner,
+                                                   void **src_p, void **dest_p,
+                                                   ssize_t n) JL_NOTSAFEPOINT
+{
+    _Atomic(void*) *src_pa = (_Atomic(void*)*)src_p;
+    _Atomic(void*) *dest_pa = (_Atomic(void*)*)dest_p;
+    for (ssize_t i = 0; i < n; i++) {
+        void *val = jl_atomic_load_relaxed(src_pa + n - i - 1);
+        jl_atomic_store_release(dest_pa + n - i - 1, val);
+        // `val` is young or old-unmarked
+        if (val && !(jl_astaggedvalue(val)->bits.gc & GC_MARKED)) {
+            jl_gc_queue_root(owner);
+            return i;
+        }
+    }
+    return n;
+}
+
+// Unsafe, assume inbounds and that dest and src have the same eltype
+JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p,
+                                       jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
+{
+    assert(dest->flags.ptrarray && src->flags.ptrarray);
+    jl_value_t *owner = jl_array_owner(dest);
+    // Destination is old and doesn't refer to any young object
+    if (__unlikely(jl_astaggedvalue(owner)->bits.gc == GC_OLD_MARKED)) {
+        jl_value_t *src_owner = jl_array_owner(src);
+        // Source is young or being promoted or might refer to young objects
+        // (i.e. source is not an old object that doesn't have wb triggered)
+        if (jl_astaggedvalue(src_owner)->bits.gc != GC_OLD_MARKED) {
+            ssize_t done;
+            if (dest_p < src_p || dest_p > src_p + n) {
+                done = jl_array_ptr_copy_forward(owner, src_p, dest_p, n);
+                dest_p += done;
+                src_p += done;
+            }
+            else {
+                done = jl_array_ptr_copy_backward(owner, src_p, dest_p, n);
+            }
+            n -= done;
+        }
+    }
+    memmove_refs(dest_p, src_p, n);
+}
+
 // Protect all access to `finalizer_list_marked` and `to_finalize`.
 // For accessing `ptls->finalizers`, the lock is needed if a thread
 // is going to realloc the buffer (of its own list) or accessing the

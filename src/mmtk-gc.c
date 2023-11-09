@@ -60,6 +60,19 @@ static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
 // malloc wrappers, aligned allocation
 // We currently just duplicate what Julia GC does. We will in the future replace the malloc calls with MMTK's malloc.
 
+void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
+{
+    if (a->flags.how == 2) {
+        char *d = (char*)a->data - a->offset*a->elsize;
+        if (a->flags.isaligned)
+            jl_free_aligned(d);
+        else
+            free(d);
+        gc_num.freed += jl_array_nbytes(a);
+        gc_num.freecall++;
+    }
+}
+
 #if defined(_OS_WINDOWS_)
 inline void *jl_malloc_aligned(size_t sz, size_t align)
 {
@@ -171,19 +184,6 @@ inline jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int o
         jl_atomic_load_relaxed(&ptls->gc_num.poolalloc) + 1);
     */
    return v;
-}
-
-void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
-{
-    if (a->flags.how == 2) {
-        char *d = (char*)a->data - a->offset*a->elsize;
-        if (a->flags.isaligned)
-            jl_free_aligned(d);
-        else
-            free(d);
-        gc_num.freed += jl_array_nbytes(a);
-        gc_num.freecall++;
-    }
 }
 
 // roots
@@ -514,6 +514,12 @@ void enable_collection(void)
 void disable_collection(void)
 {
     mmtk_disable_collection();
+}
+
+JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
+{
+    jl_ptls_t ptls = jl_current_task->ptls;
+    mmtk_memory_region_copy(&ptls->mmtk_mutator, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
 }
 
 // No inline write barrier -- only used for debugging
