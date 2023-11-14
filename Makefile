@@ -172,6 +172,9 @@ endif
 
 # private libraries, that are installed in $(prefix)/lib/julia
 JL_PRIVATE_LIBS-0 := libccalltest libllvmcalltest
+ifeq ($(WITH_MMTK), 1)
+JL_PRIVATE_LIBS-0 += libmmtk_julia
+endif
 ifeq ($(JULIA_BUILD_MODE),release)
 JL_PRIVATE_LIBS-0 += libjulia-internal libjulia-codegen
 else ifeq ($(JULIA_BUILD_MODE),debug)
