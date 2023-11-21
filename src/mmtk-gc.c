@@ -59,20 +59,6 @@ static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
 
 // malloc wrappers, aligned allocation
 // We currently just duplicate what Julia GC does. We will in the future replace the malloc calls with MMTK's malloc.
-
-void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
-{
-    if (a->flags.how == 2) {
-        char *d = (char*)a->data - a->offset*a->elsize;
-        if (a->flags.isaligned)
-            jl_free_aligned(d);
-        else
-            free(d);
-        gc_num.freed += jl_array_nbytes(a);
-        gc_num.freecall++;
-    }
-}
-
 #if defined(_OS_WINDOWS_)
 inline void *jl_malloc_aligned(size_t sz, size_t align)
 {
@@ -119,6 +105,19 @@ inline void jl_free_aligned(void *p) JL_NOTSAFEPOINT
     free(p);
 }
 #endif
+
+void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
+{
+    if (a->flags.how == 2) {
+        char *d = (char*)a->data - a->offset*a->elsize;
+        if (a->flags.isaligned)
+            jl_free_aligned(d);
+        else
+            free(d);
+        gc_num.freed += jl_array_nbytes(a);
+        gc_num.freecall++;
+    }
+}
 
 // weak references
 // ---
