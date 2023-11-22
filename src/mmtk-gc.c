@@ -505,16 +505,6 @@ void jl_gc_threadfun(void *arg)
     mmtk_unreachable();
 }
 
-// added for MMTk integration
-void enable_collection(void)
-{
-    mmtk_enable_collection();
-}
-void disable_collection(void)
-{
-    mmtk_disable_collection();
-}
-
 JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
 {
     jl_ptls_t ptls = jl_current_task->ptls;

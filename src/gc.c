@@ -3346,14 +3346,6 @@ JL_DLLEXPORT jl_value_t *jl_gc_internal_obj_base_ptr(void *p)
     return NULL;
 }
 
-// added for MMTk integration
-void enable_collection(void)
-{
-}
-void disable_collection(void)
-{
-}
-
 JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
 {
 }
