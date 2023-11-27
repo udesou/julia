@@ -69,7 +69,7 @@ static void *malloc_stack(size_t bufsz) JL_NOTSAFEPOINT
     return stk;
 }
 
-static void free_stack(void *stkbuf, size_t bufsz)
+void free_stack(void *stkbuf, size_t bufsz)
 {
     munmap(stkbuf, bufsz);
     jl_atomic_fetch_add(&num_stack_mappings, -1);
@@ -111,7 +111,7 @@ static unsigned select_pool(size_t nb) JL_NOTSAFEPOINT
 }
 
 
-static void _jl_free_stack(jl_ptls_t ptls, void *stkbuf, size_t bufsz)
+void _jl_free_stack(jl_ptls_t ptls, void *stkbuf, size_t bufsz)
 {
 #ifdef _COMPILER_ASAN_ENABLED_
     __asan_unpoison_stack_memory((uintptr_t)stkbuf, bufsz);
