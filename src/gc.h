@@ -39,6 +39,8 @@ extern void *jl_realloc_aligned(void *d, size_t sz, size_t oldsz, size_t align);
 extern void jl_gc_add_finalizer_th(jl_ptls_t ptls, jl_value_t *v, jl_function_t *f);
 extern void jl_finalize_th(jl_task_t *ct, jl_value_t *o);
 extern jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value);
+extern void clear_weak_refs(void);
+extern void sweep_weak_refs(void);
 extern jl_value_t *jl_gc_big_alloc_inner(jl_ptls_t ptls, size_t sz);
 extern jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int osize);
 extern void jl_rng_split(uint64_t to[4], uint64_t from[4]);
