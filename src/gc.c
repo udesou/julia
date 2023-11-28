@@ -584,16 +584,6 @@ inline void maybe_collect(jl_ptls_t ptls)
 
 // weak references
 
-JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls,
-                                                jl_value_t *value)
-{
-    jl_weakref_t *wr = (jl_weakref_t*)jl_gc_alloc(ptls, sizeof(void*),
-                                                  jl_weakref_type);
-    wr->value = value;  // NOTE: wb not needed here
-    small_arraylist_push(&ptls->heap.weak_refs, wr);
-    return wr;
-}
-
 static void clear_weak_refs(void)
 {
     assert(gc_n_threads);

@@ -121,12 +121,60 @@ void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
 
 // weak references
 // ---
-JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value)
+JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls,
+                                                jl_value_t *value)
 {
-    jl_weakref_t *wr = (jl_weakref_t*)jl_gc_alloc(ptls, sizeof(void*), jl_weakref_type);
+    jl_weakref_t *wr = (jl_weakref_t*)jl_gc_alloc(ptls, sizeof(void*),
+                                                  jl_weakref_type);
     wr->value = value;  // NOTE: wb not needed here
-    mmtk_add_weak_candidate(wr);
+    small_arraylist_push(&ptls->heap.weak_refs, wr);
     return wr;
+}
+
+void clear_weak_refs(void)
+{
+    assert(gc_n_threads);
+    for (int i = 0; i < gc_n_threads; i++) {
+        jl_ptls_t ptls2 = gc_all_tls_states[i];
+        if (ptls2 != NULL) {
+            size_t n, l = ptls2->heap.weak_refs.len;
+            void **lst = ptls2->heap.weak_refs.items;
+            for (n = 0; n < l; n++) {
+                jl_weakref_t *wr = (jl_weakref_t*)lst[n];
+                if (!mmtk_is_live_object(wr->value))
+                    wr->value = (jl_value_t*)jl_nothing;
+            }
+        }
+    }
+}
+
+void sweep_weak_refs(void)
+{
+    assert(gc_n_threads);
+    for (int i = 0; i < gc_n_threads; i++) {
+        jl_ptls_t ptls2 = gc_all_tls_states[i];
+        if (ptls2 != NULL) {
+            size_t n = 0;
+            size_t ndel = 0;
+            size_t l = ptls2->heap.weak_refs.len;
+            void **lst = ptls2->heap.weak_refs.items;
+            if (l == 0)
+                continue;
+            while (1) {
+                jl_weakref_t *wr = (jl_weakref_t*)lst[n];
+                if (mmtk_is_live_object(wr))
+                    n++;
+                else
+                    ndel++;
+                if (n >= l - ndel)
+                    break;
+                void *tmp = lst[n];
+                lst[n] = lst[n + ndel];
+                lst[n + ndel] = tmp;
+            }
+            ptls2->heap.weak_refs.len -= ndel;
+        }
+    }
 }
 
 
