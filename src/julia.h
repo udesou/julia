@@ -2335,7 +2335,7 @@ STATIC_INLINE void mmtk_gc_wb_fast(const void *parent, const void *ptr) JL_NOTSA
 
 STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
-    mmtk_gc_wb_fast(parent, ptr);
+    mmtk_gc_wb_full(parent, ptr);
 }
 
 #define MMTK_MIN_ALIGNMENT 4
@@ -2373,16 +2373,17 @@ STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t
 
 STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
     if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) obj;
-        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        intptr_t shift = (addr >> 3) & 0b111;
-        while(1) {
-            uint8_t old_val = *meta_addr;
-            uint8_t new_val = old_val | (1 << shift);
-            if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
-                break;
-            }
-        }
+        mmtk_object_reference_write_post(mutator, obj, NULL);
+        // intptr_t addr = (intptr_t) obj;
+        // uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
+        // intptr_t shift = (addr >> 3) & 0b111;
+        // while(1) {
+        //     uint8_t old_val = *meta_addr;
+        //     uint8_t new_val = old_val | (1 << shift);
+        //     if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
+        //         break;
+        //     }
+        // }
     }
 }
 
