@@ -380,7 +380,7 @@ void jl_gc_init(void)
         double min_size = strtod(min_size_gb, &p);
         min_heap_size = (long) 1024 * 1024 * 1024 * min_size;
     } else {
-        min_heap_size = default_collect_interval;
+        min_heap_size = (long) 1024 * 1024 * 1024 * 1.5;
     }
 
     // default max heap currently set as 70% the free memory in the system
