@@ -2978,6 +2978,11 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
 }
 
+void jl_deinit_thread_heap(jl_ptls_t ptls)
+{
+    // do nothing
+}
+
 // System-wide initializations
 void jl_gc_init(void)
 {

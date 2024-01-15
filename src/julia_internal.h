@@ -922,6 +922,7 @@ void jl_init_serializer(void);
 void jl_gc_init(void);
 void jl_init_uv(void);
 void jl_init_thread_heap(jl_ptls_t ptls);
+void jl_deinit_thread_heap(jl_ptls_t ptls);
 void jl_init_int32_int64_cache(void);
 JL_DLLEXPORT void jl_init_options(void);
 
