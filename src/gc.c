@@ -584,7 +584,7 @@ inline void maybe_collect(jl_ptls_t ptls)
 
 // weak references
 
-static void clear_weak_refs(void)
+void clear_weak_refs(void)
 {
     assert(gc_n_threads);
     for (int i = 0; i < gc_n_threads; i++) {
@@ -601,7 +601,7 @@ static void clear_weak_refs(void)
     }
 }
 
-static void sweep_weak_refs(void)
+void sweep_weak_refs(void)
 {
     assert(gc_n_threads);
     for (int i = 0; i < gc_n_threads; i++) {
