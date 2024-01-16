@@ -338,15 +338,6 @@ JL_DLLEXPORT void jl_atexit_hook(int exitcode)
     }
 
     // TODO: Destroy threads
-    int gc_n_threads;
-    jl_ptls_t* gc_all_tls_states;
-    gc_n_threads = jl_atomic_load_acquire(&jl_n_threads);
-    gc_all_tls_states = jl_atomic_load_relaxed(&jl_all_tls_states);
-    for (int i = 0; i < gc_n_threads; i++) {
-        jl_ptls_t ptls2 = gc_all_tls_states[i];
-        if (ptls2 != NULL)
-            jl_deinit_thread_heap(ptls2);
-    }
 
     jl_destroy_timing();
 #ifdef ENABLE_TIMINGS
