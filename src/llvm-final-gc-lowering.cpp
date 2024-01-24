@@ -358,6 +358,8 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
                 builder.CreateStore(pool_allocd_total, pool_alloc_tls);
 
+                // FIXME: add ptls->gc_num.poolalloc++;
+
                 auto v_raw = builder.CreateNSWAdd(result, ConstantInt::get(Type::getInt64Ty(target->getContext()), sizeof(jl_taggedvalue_t)));
                 auto v_as_ptr = builder.CreateIntToPtr(v_raw, poolAllocFunc->getReturnType());
                 builder.CreateBr(top_cont);

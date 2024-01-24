@@ -584,7 +584,7 @@ inline void maybe_collect(jl_ptls_t ptls)
 
 // weak references
 
-static void clear_weak_refs(void)
+void clear_weak_refs(void)
 {
     assert(gc_n_threads);
     for (int i = 0; i < gc_n_threads; i++) {
@@ -601,7 +601,7 @@ static void clear_weak_refs(void)
     }
 }
 
-static void sweep_weak_refs(void)
+void sweep_weak_refs(void)
 {
     assert(gc_n_threads);
     for (int i = 0; i < gc_n_threads; i++) {
@@ -2976,6 +2976,11 @@ void jl_init_thread_heap(jl_ptls_t ptls)
 
     memset(&ptls->gc_num, 0, sizeof(ptls->gc_num));
     jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
+}
+
+void jl_deinit_thread_heap(jl_ptls_t ptls)
+{
+    // do nothing
 }
 
 // System-wide initializations

@@ -456,6 +456,9 @@ static void jl_delete_thread(void *value)
 #else
     pthread_mutex_unlock(&in_signal_lock);
 #endif
+
+    jl_deinit_thread_heap(ptls);
+
     (void)jl_gc_safe_enter(ptls);
 }
 
