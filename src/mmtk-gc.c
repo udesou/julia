@@ -242,7 +242,7 @@ JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
     // FIXME: Either this is unreachable or we need to make sure the binding gets added to the remset
     jl_astaggedvalue(bnd)->bits.gc = 1; // to indicate that the buffer is a binding
-    mmtk_gc_wb(bnd, (void*)0));
+    mmtk_gc_wb(bnd, (void*)0);
 }
 
 // marking
