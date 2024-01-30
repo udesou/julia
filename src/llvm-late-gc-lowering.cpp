@@ -2539,7 +2539,7 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
         // This works fine for object barrier for generational plans (such as stickyimmix), which does not use the target object at all.
         // But for other MMTk plans, we need to be careful.
         const bool INLINE_WRITE_BARRIER = true;
-        if (CI->getCalledOperand() == write_barrier_func {
+        if (CI->getCalledOperand() == write_barrier_func) {
             if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
                 if (INLINE_WRITE_BARRIER) {
                     auto i8_ty = Type::getInt8Ty(F.getContext());
