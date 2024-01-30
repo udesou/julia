@@ -2538,8 +2538,8 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
         // FIXME: Currently we call write barrier with the src object (parent).
         // This works fine for object barrier for generational plans (such as stickyimmix), which does not use the target object at all.
         // But for other MMTk plans, we need to be careful.
-        const bool INLINE_WRITE_BARRIER = false;
-        if (CI->getCalledOperand() == write_barrier_func || CI->getCalledOperand() == write_barrier_binding_func) {
+        const bool INLINE_WRITE_BARRIER = true;
+        if (CI->getCalledOperand() == write_barrier_func {
             if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
                 if (INLINE_WRITE_BARRIER) {
                     auto i8_ty = Type::getInt8Ty(F.getContext());
@@ -2578,6 +2578,8 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                     builder.CreateCall(wb_func, { parent });
                 }
             }
+        } else if (CI->getCalledOperand() == write_barrier_binding_func) {
+            builder.CreateCall(getOrDeclare(jl_intrinsics::queueGCBinding), parent);
         } else {
             assert(false);
         }
