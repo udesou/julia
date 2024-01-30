@@ -240,8 +240,9 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
+    // FIXME: Either this is unreachable or we need to make sure the binding gets added to the remset
+    mmtk_unreachable();
 }
-
 
 // marking
 // ---
