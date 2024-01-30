@@ -624,7 +624,7 @@ STATIC_INLINE void jl_gc_wb_buf(void *parent, void *bufptr, size_t minsz) JL_NOT
 
 STATIC_INLINE void jl_gc_wb_binding(jl_binding_t *bnd, void *val) JL_NOTSAFEPOINT // val isa jl_value_t*
 {
-    jl_astaggedvalue(bnd)->bits.gc = 2; // to indicate that the buffer is a binding
+    jl_astaggedvalue(bnd)->bits.gc = 1; // to indicate that the buffer is a binding
     mmtk_gc_wb(bnd, val);
 }
 
