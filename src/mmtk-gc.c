@@ -240,6 +240,7 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
+    mmtk_unreachable();
 }
 
 
@@ -563,6 +564,11 @@ JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
 JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     jl_gc_wb(parent, ptr);
+}
+
+JL_DLLEXPORT void jl_gc_wb_binding_noinline(const void *bnd, const void *val) JL_NOTSAFEPOINT
+{
+    jl_gc_wb_binding((jl_binding_t*)bnd, (void*)val);
 }
 
 JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
