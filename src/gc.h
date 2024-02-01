@@ -83,7 +83,7 @@ extern const size_t max_collect_interval;
 extern size_t last_long_collect_interval;
 extern size_t total_mem;
 extern memsize_t max_total_memory;
-extern _Atomic(uint32_t) jl_gc_disable_counter;
+extern JL_DLLEXPORT _Atomic(uint32_t) jl_gc_disable_counter;
 extern jl_mutex_t heapsnapshot_lock;
 extern uint64_t finalizer_rngState[];
 extern int gc_n_threads;
