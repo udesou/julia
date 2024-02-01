@@ -576,7 +576,7 @@ void gc_premark(jl_ptls_t ptls2)
 // GC control
 // ---
 
-_Atomic(uint32_t) jl_gc_disable_counter = 1;
+JL_DLLEXPORT _Atomic(uint32_t) jl_gc_disable_counter = 1;
 
 JL_DLLEXPORT int jl_gc_enable(int on)
 {
