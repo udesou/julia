@@ -3438,12 +3438,6 @@ void jl_gc_threadfun(void *arg)
 }
 
 // added for MMTk integration
-void enable_collection(void)
-{
-}
-void disable_collection(void)
-{
-}
 
 JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
 {

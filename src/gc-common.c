@@ -576,7 +576,7 @@ void gc_premark(jl_ptls_t ptls2)
 // GC control
 // ---
 
-_Atomic(uint32_t) jl_gc_disable_counter = 1;
+JL_DLLEXPORT _Atomic(uint32_t) jl_gc_disable_counter = 1;
 
 JL_DLLEXPORT int jl_gc_enable(int on)
 {
@@ -588,11 +588,9 @@ JL_DLLEXPORT int jl_gc_enable(int on)
         if (jl_atomic_fetch_add(&jl_gc_disable_counter, -1) == 1) {
             gc_num.allocd += gc_num.deferred_alloc;
             gc_num.deferred_alloc = 0;
-            enable_collection();
         }
     }
     else if (prev && !on) {
-        disable_collection();
         // enable -> disable
         jl_atomic_fetch_add(&jl_gc_disable_counter, 1);
         // check if the GC is running and wait for it to finish
