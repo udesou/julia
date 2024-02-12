@@ -239,9 +239,11 @@ JL_DLLEXPORT jl_array_t *jl_reshape_array(jl_value_t *atype, jl_array_t *data,
     jl_array_t *owner = (jl_array_t*)jl_array_owner(data);
     jl_array_data_owner(a) = (jl_value_t*)owner;
 
-    if(mmtk_object_is_managed_by_mmtk(owner)) {
-        mmtk_pin_object(owner);
-    }
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    mmtk_pin_object(owner);
     a->flags.how = 3;
     a->data = data->data;
     a->flags.isshared = 1;
@@ -290,9 +292,11 @@ JL_DLLEXPORT jl_array_t *jl_string_to_array(jl_value_t *str)
     a->flags.ptrarray = 0;
     a->flags.hasptr = 0;
     jl_array_data_owner(a) = str;
-    if(mmtk_object_is_managed_by_mmtk(str)) {
-        mmtk_pin_object(str);
-    }
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    mmtk_pin_object(str);
     a->flags.how = 3;
     a->flags.isshared = 1;
     size_t l = jl_string_len(str);
@@ -689,9 +693,11 @@ static int NOINLINE array_resize_buffer(jl_array_t *a, size_t newlen)
         else {
             s = jl_gc_realloc_string(jl_array_data_owner(a), nbytes - (elsz == 1));
         }
-        if(mmtk_object_is_managed_by_mmtk(s)) {
-            mmtk_pin_object(s);
-        }
+        // For array objects with an owner point (a->flags.how == 3), we would need to
+        // introspect the object to update the a->data field. To avoid doing that and
+        // making scan_object much more complex we simply enforce that both owner and
+        // buffers are always pinned
+        mmtk_pin_object(s);
         jl_array_data_owner(a) = s;
         jl_gc_wb(a, s);
         a->data = jl_string_data(s);

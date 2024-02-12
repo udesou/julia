@@ -533,6 +533,10 @@ typedef void jl_gc_tracked_buffer_t; // For the benefit of the static analyzer
 STATIC_INLINE jl_gc_tracked_buffer_t *jl_gc_alloc_buf(jl_ptls_t ptls, size_t sz)
 {
     jl_gc_tracked_buffer_t *buf = jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
     mmtk_pin_object(buf);
     return buf;
 }
