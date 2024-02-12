@@ -3,6 +3,21 @@
 #ifndef JULIA_H
 #define JULIA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int mmtk_object_is_managed_by_mmtk(void* addr);
+extern unsigned char mmtk_pin_object(void* obj);
+// FIXME: Pinning objects that get hashed in the ptrhash table
+// until we implement address space hashing.
+#define PTRHASH_PIN(key)                        \
+        mmtk_pin_object(key);                   \
+
+#ifdef __cplusplus
+}
+#endif
+
 #if defined(JL_LIBRARY_EXPORTS_INTERNAL) || defined(JL_LIBRARY_EXPORTS_CODEGEN)
 #define JL_LIBRARY_EXPORTS
 #endif
