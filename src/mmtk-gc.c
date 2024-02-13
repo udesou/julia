@@ -394,11 +394,7 @@ void jl_gc_init(void)
         double max_size = strtod(max_size_gb, &p);
         max_heap_size = (long) 1024 * 1024 * 1024 * max_size;
     } else {
-<<<<<<< HEAD
         max_heap_size = (long) 1024 * 1024 * 1024 * 40; // setting up the default as fixed heap size of 40 Gb
-=======
-        max_heap_size = (long) uv_get_free_memory() * 60 / 100;
->>>>>>> v1.9.2+RAI
     }
 
     // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
