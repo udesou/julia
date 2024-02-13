@@ -240,6 +240,7 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
+    mmtk_unreachable();
 }
 
 
@@ -380,7 +381,7 @@ void jl_gc_init(void)
         double min_size = strtod(min_size_gb, &p);
         min_heap_size = (long) 1024 * 1024 * 1024 * min_size;
     } else {
-        min_heap_size = 0; // setting up the default as fixed heap size
+        min_heap_size = (long) 1024 * 1024 * 1024 * 1;
     }
 
     // default max heap currently set as 40 Gb
@@ -393,7 +394,11 @@ void jl_gc_init(void)
         double max_size = strtod(max_size_gb, &p);
         max_heap_size = (long) 1024 * 1024 * 1024 * max_size;
     } else {
+<<<<<<< HEAD
         max_heap_size = (long) 1024 * 1024 * 1024 * 40; // setting up the default as fixed heap size of 40 Gb
+=======
+        max_heap_size = (long) uv_get_free_memory() * 60 / 100;
+>>>>>>> v1.9.2+RAI
     }
 
     // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
@@ -477,6 +482,10 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     size_t len = jl_string_len(s);
     jl_value_t *snew = jl_alloc_string(sz);
     memcpy(jl_string_data(snew), jl_string_data(s), sz <= len ? sz : len);
+    if(mmtk_is_pinned(s)) {
+        // if the source string was pinned, we also pin the new one
+        mmtk_pin_object(snew);
+    }
     return snew;
 }
 
@@ -563,6 +572,11 @@ JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
 JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     jl_gc_wb(parent, ptr);
+}
+
+JL_DLLEXPORT void jl_gc_wb_binding_noinline(const void *bnd, const void *val) JL_NOTSAFEPOINT
+{
+    jl_gc_wb_binding((jl_binding_t*)bnd, (void*)val);
 }
 
 JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
