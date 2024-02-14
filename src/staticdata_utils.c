@@ -272,6 +272,7 @@ static void jl_collect_new_roots(jl_array_t *roots, jl_array_t *new_specializati
         assert(jl_is_code_instance(ci));
         jl_method_t *m = ci->def->def.method;
         assert(jl_is_method(m));
+        PTRHASH_PIN(m)
         ptrhash_put(&mset, (void*)m, (void*)m);
     }
     int nwithkey;
@@ -428,6 +429,7 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets, jl_arra
         for (size_t i = 0; i < jl_array_len(external_cis); i++) {
             jl_code_instance_t *ci = (jl_code_instance_t*)jl_array_ptr_ref(external_cis, i);
             jl_method_instance_t *mi = ci->def;
+            PTRHASH_PIN(mi)
             ptrhash_put(&external_mis, (void*)mi, (void*)mi);
         }
     }
@@ -463,6 +465,8 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets, jl_arra
     for (size_t i = 0; i < l / 2; i++) {
         jl_method_instance_t *caller = (jl_method_instance_t*)jl_array_ptr_ref(edges, i * 2);
         void *target = (void*)((char*)HT_NOTFOUND + i + 1);
+        PTRHASH_PIN(caller)
+        PTRHASH_PIN(target)
         ptrhash_put(&edges_ids, (void*)caller, target);
     }
     // process target list to turn it into a memoized validity table
@@ -534,6 +538,8 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets, jl_arra
                 jl_array_ptr_1d_push(ext_targets, callee);
                 jl_array_ptr_1d_push(ext_targets, matches);
                 target = (void*)((char*)HT_NOTFOUND + jl_array_len(ext_targets) / 3);
+                PTRHASH_PIN(callee)
+                PTRHASH_PIN(target)
                 ptrhash_put(&edges_map2, (void*)callee, target);
             }
             idxs[++nt] = (char*)target - (char*)HT_NOTFOUND - 1;
@@ -1070,6 +1076,8 @@ static void jl_insert_backedges(jl_array_t *edges, jl_array_t *ext_targets, jl_a
         jl_code_instance_t *ci = (jl_code_instance_t*)jl_array_ptr_ref(ci_list, i);
         assert(ci->min_world == minworld);
         if (ci->max_world == 1) { // sentinel value: has edges to external callables
+            PTRHASH_PIN((void*)ci->def)
+            PTRHASH_PIN((void*)ci)
             ptrhash_put(&visited, (void*)ci->def, (void*)ci);
         }
         else {
@@ -1135,6 +1143,7 @@ static void classify_callers(htable_t *callers_with_edges, jl_array_t *edges)
     size_t l = edges ? jl_array_len(edges) / 2 : 0;
     for (size_t i = 0; i < l; i++) {
         jl_method_instance_t *caller = (jl_method_instance_t*)jl_array_ptr_ref(edges, 2 * i);
+        PTRHASH_PIN((void*)caller)
         ptrhash_put(callers_with_edges, (void*)caller, (void*)caller);
     }
 }

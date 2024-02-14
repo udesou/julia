@@ -240,6 +240,7 @@ JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *parent, const jl_value
 
 JL_DLLEXPORT void jl_gc_queue_binding(jl_binding_t *bnd)
 {
+    mmtk_unreachable();
 }
 
 
@@ -380,7 +381,7 @@ void jl_gc_init(void)
         double min_size = strtod(min_size_gb, &p);
         min_heap_size = (long) 1024 * 1024 * 1024 * min_size;
     } else {
-        min_heap_size = 0; // setting up the default as fixed heap size
+        min_heap_size = (long) 1024 * 1024 * 1024 * 1;
     }
 
     // default max heap currently set as 40 Gb
@@ -477,6 +478,10 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     size_t len = jl_string_len(s);
     jl_value_t *snew = jl_alloc_string(sz);
     memcpy(jl_string_data(snew), jl_string_data(s), sz <= len ? sz : len);
+    if(mmtk_is_pinned(s)) {
+        // if the source string was pinned, we also pin the new one
+        mmtk_pin_object(snew);
+    }
     return snew;
 }
 
@@ -563,6 +568,11 @@ JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
 JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     jl_gc_wb(parent, ptr);
+}
+
+JL_DLLEXPORT void jl_gc_wb_binding_noinline(const void *bnd, const void *val) JL_NOTSAFEPOINT
+{
+    jl_gc_wb_binding((jl_binding_t*)bnd, (void*)val);
 }
 
 JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
