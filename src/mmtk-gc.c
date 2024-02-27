@@ -53,6 +53,16 @@ static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
     }
 }
 
+// allocation
+int jl_gc_classify_pools(size_t sz, int *osize)
+{
+    if (sz > GC_MAX_SZCLASS)
+        return -1; // call big alloc function
+    size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+    *osize = LLT_ALIGN(allocsz, 16);
+    return 0; // use MMTk's fastpath logic
+}
+
 // malloc wrappers, aligned allocation
 // We currently just duplicate what Julia GC does. We will in the future replace the malloc calls with MMTK's malloc.
 
@@ -157,7 +167,7 @@ inline jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int o
     // TODO: drop this okay?
     // maybe_collect(ptls);
 
-    jl_value_t *v = jl_mmtk_gc_alloc_default(ptls, pool_offset, osize, NULL);
+    jl_value_t *v = jl_mmtk_gc_alloc_default(ptls, osize, 16, NULL);
     // TODO: this is done (without atomic operations) in jl_mmtk_gc_alloc_default; enable
     // here when that's edited?
     /*
