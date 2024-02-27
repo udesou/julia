@@ -333,8 +333,6 @@ extern jl_array_t *jl_all_methods JL_GLOBALLY_ROOTED;
 JL_DLLEXPORT extern int jl_lineno;
 JL_DLLEXPORT extern const char *jl_filename;
 
-extern void enable_collection(void);
-extern void disable_collection(void);
 jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
@@ -532,7 +530,13 @@ JL_DLLEXPORT uintptr_t jl_get_buff_tag(void);
 typedef void jl_gc_tracked_buffer_t; // For the benefit of the static analyzer
 STATIC_INLINE jl_gc_tracked_buffer_t *jl_gc_alloc_buf(jl_ptls_t ptls, size_t sz)
 {
-    return jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    jl_gc_tracked_buffer_t *buf = jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    mmtk_pin_object(buf);
+    return buf;
 }
 
 STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
@@ -936,7 +940,7 @@ STATIC_INLINE int jl_addr_is_safepoint(uintptr_t addr)
     return addr >= safepoint_addr && addr < safepoint_addr + jl_page_size * 3;
 }
 extern _Atomic(uint32_t) jl_gc_running;
-extern _Atomic(uint32_t) jl_gc_disable_counter;
+extern JL_DLLEXPORT _Atomic(uint32_t) jl_gc_disable_counter;
 // All the functions are safe to be called from within a signal handler
 // provided that the thread will not be interrupted by another asynchronous
 // signal.

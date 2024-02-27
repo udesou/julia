@@ -229,7 +229,7 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
 {
     jl_task_t *ct = jl_current_task;
     jl_ptls_t ptls = ct->ptls;
-    if (jl_atomic_load_relaxed(&jl_gc_disable_counter)) {
+    if (jl_atomic_load_acquire(&jl_gc_disable_counter)) {
         size_t localbytes = jl_atomic_load_relaxed(&ptls->gc_num.allocd) + gc_num.interval;
         jl_atomic_store_relaxed(&ptls->gc_num.allocd, -(int64_t)gc_num.interval);
         static_assert(sizeof(_Atomic(uint64_t)) == sizeof(gc_num.deferred_alloc), "");
@@ -441,6 +441,10 @@ jl_value_t *jl_gc_realloc_string(jl_value_t *s, size_t sz)
     size_t len = jl_string_len(s);
     jl_value_t *snew = jl_alloc_string(sz);
     memcpy(jl_string_data(snew), jl_string_data(s), sz <= len ? sz : len);
+    if(mmtk_is_pinned(s)) {
+        // if the source string was pinned, we also pin the new one
+        mmtk_pin_object(snew);
+    }
     return snew;
 }
 
@@ -513,14 +517,6 @@ void jl_gc_threadfun(void *arg)
 }
 
 // added for MMTk integration
-void enable_collection(void)
-{
-    mmtk_enable_collection();
-}
-void disable_collection(void)
-{
-    mmtk_disable_collection();
-}
 
 JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array_t *src, void **src_p, ssize_t n) JL_NOTSAFEPOINT
 {
