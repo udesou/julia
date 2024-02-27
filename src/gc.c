@@ -805,6 +805,16 @@ static NOINLINE jl_taggedvalue_t *gc_add_page(jl_gc_pool_t *p) JL_NOTSAFEPOINT
     return fl;
 }
 
+int jl_gc_classify_pools(size_t sz, int *osize)
+{
+    if (sz > GC_MAX_SZCLASS)
+        return -1;
+    size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+    int klass = jl_gc_szclass(allocsz);
+    *osize = jl_gc_sizeclasses[klass];
+    return (int)(intptr_t)(&((jl_ptls_t)0)->heap.norm_pools[klass]);
+}
+
 // Size includes the tag and the tag is not cleared!!
 inline jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset,
                                           int osize)
