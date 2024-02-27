@@ -56,6 +56,7 @@ struct JLOptions
     strip_ir::Int8
     permalloc_pkgimg::Int8
     heap_size_hint::UInt64
+    fixed_heap_size::UInt64
 end
 
 # This runs early in the sysimage != is not defined yet

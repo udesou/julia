@@ -255,6 +255,7 @@ JL_DLLEXPORT void jl_parse_opts(int *argcp, char ***argvp)
            opt_strip_metadata,
            opt_strip_ir,
            opt_heap_size_hint,
+           opt_fixed_heap_size,
            opt_permalloc_pkgimg,
            opt_gc_threads,
     };
@@ -318,6 +319,7 @@ JL_DLLEXPORT void jl_parse_opts(int *argcp, char ***argvp)
         { "strip-ir",        no_argument,       0, opt_strip_ir },
         { "permalloc-pkgimg",required_argument, 0, opt_permalloc_pkgimg },
         { "heap-size-hint",  required_argument, 0, opt_heap_size_hint },
+        { "fixed-heap-size", required_argument, 0, opt_fixed_heap_size },
         { 0, 0, 0, 0 }
     };
 
@@ -822,6 +824,39 @@ restart_switch:
             if (jl_options.heap_size_hint == 0)
                 jl_errorf("julia: invalid argument to --heap-size-hint without memory size specified");
 
+            break;
+        case opt_fixed_heap_size:
+            if (optarg != NULL) {
+                size_t endof = strlen(optarg);
+                long double value = 0.0;
+                if (sscanf(optarg, "%Lf", &value) == 1 && value > 1e-7) {
+                    char unit = optarg[endof - 1];
+                    uint64_t multiplier = 1ull;
+                    switch (unit) {
+                        case 'k':
+                        case 'K':
+                            multiplier <<= 10;
+                            break;
+                        case 'm':
+                        case 'M':
+                            multiplier <<= 20;
+                            break;
+                        case 'g':
+                        case 'G':
+                            multiplier <<= 30;
+                            break;
+                        case 't':
+                        case 'T':
+                            multiplier <<= 40;
+                            break;
+                        default:
+                            break;
+                    }
+                    jl_options.fixed_heap_size = (uint64_t)(value * multiplier);
+                }
+            }
+            if (jl_options.fixed_heap_size == 0)
+                jl_errorf("julia: invalid argument to --fixed-heap-size without memory size specified");
             break;
         case opt_permalloc_pkgimg:
             if (!strcmp(optarg,"yes"))

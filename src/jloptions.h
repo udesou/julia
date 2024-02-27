@@ -60,6 +60,7 @@ typedef struct {
     int8_t strip_ir;
     int8_t permalloc_pkgimg;
     uint64_t heap_size_hint;
+    uint64_t fixed_heap_size;
 } jl_options_t;
 
 #endif
