@@ -506,9 +506,7 @@ JL_DLLEXPORT jl_value_t *jl_alloc_string(size_t len)
         // the Allocations Profiler. (See https://github.com/JuliaLang/julia/pull/43868 for more details.)
         s = jl_gc_pool_alloc_noinline(ptls, (char*)p - (char*)ptls, osize);
 #else
-        int pool_id = jl_gc_szclass_align8(allocsz);
-        int osize = jl_gc_sizeclasses[pool_id];
-        s = jl_mmtk_gc_alloc_default(ptls, pool_id, osize, jl_string_type);
+        s = jl_mmtk_gc_alloc_default(ptls, allocsz, 8, jl_string_type);
 #endif
     }
     else {
