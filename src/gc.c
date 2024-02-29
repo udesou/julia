@@ -584,7 +584,6 @@ inline void maybe_collect(jl_ptls_t ptls)
         uint64_t current_heap_size = ((uint64_t)jl_current_pg_count()) << (uint64_t)14;
         current_heap_size += jl_atomic_load_relaxed(&malloc_bytes);
         if (current_heap_size >= jl_options.fixed_heap_size) {
-            printf("GC: fixed heap size = %ld, current heap size = %ld\n", jl_options.fixed_heap_size, current_heap_size);
             jl_gc_collect(JL_GC_AUTO);
         } else {
             jl_gc_safepoint_(ptls);
@@ -2720,7 +2719,6 @@ static int _jl_gc_collect(jl_ptls_t ptls, jl_gc_collection_t collection)
         sweep_full = 1;
     }
     if (sweep_full) {
-        printf("Full sweep\n");
         // these are the difference between the number of gc-perm bytes scanned
         // on the first collection after sweep_full, and the current scan
         perm_scanned_bytes = 0;
