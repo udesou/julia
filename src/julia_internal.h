@@ -3,6 +3,22 @@
 #ifndef JL_INTERNAL_H
 #define JL_INTERNAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int mmtk_object_is_managed_by_mmtk(void* addr);
+extern unsigned char mmtk_pin_object(void* obj);
+#ifdef MMTK_GC
+#define PTR_PIN(key) mmtk_pin_object(key);
+#else
+#define PTR_PIN(key)
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "options.h"
 #include "julia_locks.h"
 #include "julia_threads.h"
@@ -334,7 +350,7 @@ jl_value_t *jl_gc_pool_alloc_noinline(jl_ptls_t ptls, int pool_offset,
                                    int osize);
 jl_value_t *jl_gc_big_alloc_noinline(jl_ptls_t ptls, size_t allocsz);
 #ifdef MMTK_GC
-JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int pool_offset, int osize, void* ty);
+JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int osize, size_t align, void* ty);
 JL_DLLIMPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t allocsz);
 JL_DLLIMPORT extern void mmtk_post_alloc(void* mutator, void* obj, size_t bytes, int allocator);
 JL_DLLIMPORT extern void mmtk_initialize_collection(void* tls);
@@ -488,9 +504,7 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     jl_value_t *v;
     const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
     if (sz <= GC_MAX_SZCLASS) {
-        int pool_id = jl_gc_szclass(allocsz);
-        int osize = jl_gc_sizeclasses[pool_id];
-        v = jl_mmtk_gc_alloc_default(ptls, pool_id, osize, ty);
+        v = jl_mmtk_gc_alloc_default(ptls, allocsz, 16, ty);
     }
     else {
         if (allocsz < sz) // overflow in adding offs, size was "negative"
@@ -529,7 +543,13 @@ JL_DLLEXPORT uintptr_t jl_get_buff_tag(void);
 typedef void jl_gc_tracked_buffer_t; // For the benefit of the static analyzer
 STATIC_INLINE jl_gc_tracked_buffer_t *jl_gc_alloc_buf(jl_ptls_t ptls, size_t sz)
 {
-    return jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    jl_gc_tracked_buffer_t *buf = jl_gc_alloc(ptls, sz, (void*)jl_buff_tag);
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    PTR_PIN(buf);
+    return buf;
 }
 
 STATIC_INLINE jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT

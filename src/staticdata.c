@@ -699,6 +699,8 @@ static int needs_uniquing(jl_value_t *v) JL_NOTSAFEPOINT
 
 static void record_field_change(jl_value_t **addr, jl_value_t *newval) JL_NOTSAFEPOINT
 {
+    PTRHASH_PIN((void*)addr)
+    PTRHASH_PIN((void*)newval)
     ptrhash_put(&field_replace, (void*)addr, newval);
 }
 
@@ -2197,6 +2199,8 @@ static jl_svec_t *jl_prune_type_cache_hash(jl_svec_t *cache) JL_GC_DISABLED
     assert(serialization_queue.items[(char*)idx - 1 - (char*)HT_NOTFOUND] == cache);
     cache = cache_rehash_set(cache, l);
     // redirect all references to the old cache to relocate to the new cache object
+    PTRHASH_PIN((void*)cache)
+    PTRHASH_PIN((void*)idx)
     ptrhash_put(&serialization_order, cache, idx);
     serialization_queue.items[(char*)idx - 1 - (char*)HT_NOTFOUND] = cache;
     return cache;
@@ -2442,6 +2446,7 @@ static void jl_save_system_image_to_stream(ios_t *f, jl_array_t *mod_array,
     htable_new(&fptr_to_id, sizeof(id_to_fptrs) / sizeof(*id_to_fptrs));
     uintptr_t i;
     for (i = 0; id_to_fptrs[i] != NULL; i++) {
+        PTRHASH_PIN((void*)(uintptr_t)id_to_fptrs[i])
         ptrhash_put(&fptr_to_id, (void*)(uintptr_t)id_to_fptrs[i], (void*)(i + 2));
     }
     htable_new(&serialization_order, 25000);
@@ -2529,6 +2534,7 @@ static void jl_save_system_image_to_stream(ios_t *f, jl_array_t *mod_array,
             htable_new(&external_objects, NUM_TAGS);
             for (size_t i = 0; tags[i] != NULL; i++) {
                 jl_value_t *tag = *tags[i];
+                PTRHASH_PIN(tag)
                 ptrhash_put(&external_objects, tag, tag);
             }
             // Queue the worklist itself as the first item we serialize
@@ -3083,6 +3089,7 @@ static void jl_restore_system_image_from_stream_(ios_t *f, jl_image_t *image, jl
                 assert(tag == 0);
                 arraylist_push(&delay_list, pfld);
                 arraylist_push(&delay_list, obj);
+                PTRHASH_PIN(obj)
                 ptrhash_put(&new_dt_objs, (void*)obj, obj); // mark obj as invalid
                 *pfld = (uintptr_t)NULL;
                 continue;
@@ -3116,6 +3123,8 @@ static void jl_restore_system_image_from_stream_(ios_t *f, jl_image_t *image, jl
                     }
                     static_assert(offsetof(jl_datatype_t, name) == 0, "");
                     newdt->name = dt->name;
+                    PTRHASH_PIN(newdt)
+                    PTRHASH_PIN(dt)
                     ptrhash_put(&new_dt_objs, (void*)newdt, dt);
                 }
                 else {

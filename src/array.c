@@ -239,6 +239,11 @@ JL_DLLEXPORT jl_array_t *jl_reshape_array(jl_value_t *atype, jl_array_t *data,
     jl_array_t *owner = (jl_array_t*)jl_array_owner(data);
     jl_array_data_owner(a) = (jl_value_t*)owner;
 
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    PTR_PIN(owner);
     a->flags.how = 3;
     a->data = data->data;
     a->flags.isshared = 1;
@@ -287,6 +292,11 @@ JL_DLLEXPORT jl_array_t *jl_string_to_array(jl_value_t *str)
     a->flags.ptrarray = 0;
     a->flags.hasptr = 0;
     jl_array_data_owner(a) = str;
+    // For array objects with an owner point (a->flags.how == 3), we would need to
+    // introspect the object to update the a->data field. To avoid doing that and
+    // making scan_object much more complex we simply enforce that both owner and
+    // buffers are always pinned
+    PTR_PIN(str);
     a->flags.how = 3;
     a->flags.isshared = 1;
     size_t l = jl_string_len(str);
@@ -496,9 +506,7 @@ JL_DLLEXPORT jl_value_t *jl_alloc_string(size_t len)
         // the Allocations Profiler. (See https://github.com/JuliaLang/julia/pull/43868 for more details.)
         s = jl_gc_pool_alloc_noinline(ptls, (char*)p - (char*)ptls, osize);
 #else
-        int pool_id = jl_gc_szclass_align8(allocsz);
-        int osize = jl_gc_sizeclasses[pool_id];
-        s = jl_mmtk_gc_alloc_default(ptls, pool_id, osize, jl_string_type);
+        s = jl_mmtk_gc_alloc_default(ptls, allocsz, 8, jl_string_type);
 #endif
     }
     else {
@@ -683,6 +691,11 @@ static int NOINLINE array_resize_buffer(jl_array_t *a, size_t newlen)
         else {
             s = jl_gc_realloc_string(jl_array_data_owner(a), nbytes - (elsz == 1));
         }
+        // For array objects with an owner point (a->flags.how == 3), we would need to
+        // introspect the object to update the a->data field. To avoid doing that and
+        // making scan_object much more complex we simply enforce that both owner and
+        // buffers are always pinned
+        PTR_PIN(s);
         jl_array_data_owner(a) = s;
         jl_gc_wb(a, s);
         a->data = jl_string_data(s);

@@ -4,6 +4,25 @@
 #define JULIA_H
 
 #ifdef LIBRARY_EXPORTS
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int mmtk_object_is_managed_by_mmtk(void* addr);
+extern unsigned char mmtk_pin_object(void* obj);
+// FIXME: Pinning objects that get hashed in the ptrhash table
+// until we implement address space hashing.
+#ifdef MMTK_GC
+#define PTRHASH_PIN(key) mmtk_pin_object(key);
+#else
+#define PTRHASH_PIN(key)
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 // Generated file, needs to be searched in include paths so that the builddir
 // retains priority
 #include <jl_internal_funcs.inc>
