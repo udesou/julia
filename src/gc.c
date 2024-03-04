@@ -2724,6 +2724,10 @@ static int _jl_gc_collect(jl_ptls_t ptls, jl_gc_collection_t collection)
         sweep_full = 1;
         recollect = 1;
     }
+    if (jl_options.fixed_heap_size) {
+        // For fixed heap size, do not trigger full sweep for any other heuristics
+        sweep_full = 0;
+    }
     if (next_sweep_full) {
         next_sweep_full = 0;
         sweep_full = 1;
