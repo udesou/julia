@@ -1838,19 +1838,19 @@ STATIC_INLINE void gc_mark_module_binding(jl_ptls_t ptls, jl_module_t *mb_parent
             gc_setmark_buf_(ptls, b, bits, sizeof(jl_binding_t));
         }
         void *vb = jl_astaggedvalue(b);
-        verify_parent1("module", binding->parent, &vb, "binding_buff");
+        verify_parent1("module", mb_parent, &vb, "binding_buff");
         // Record the size used for the box for non-const bindings
         gc_heap_snapshot_record_module_to_binding(mb_parent, b);
         (void)vb;
         jl_value_t *ty = jl_atomic_load_relaxed(&b->ty);
         if (ty && ty != (jl_value_t*)jl_any_type) {
-            verify_parent2("module", binding->parent,
+            verify_parent2("module", mb_parent,
                            &b->ty, "binding(%s)", jl_symbol_name(b->name));
             gc_try_claim_and_push(mq, ty, &nptr);
         }
         jl_value_t *value = jl_atomic_load_relaxed(&b->value);
         if (value) {
-            verify_parent2("module", binding->parent,
+            verify_parent2("module", mb_parent,
                            &b->value, "binding(%s)", jl_symbol_name(b->name));
             gc_try_claim_and_push(mq, value, &nptr);
         }
@@ -2937,6 +2937,24 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection)
         }
         JL_UNLOCK_NOGC(&finalizers_lock);
     }
+
+    uint64_t timestamp = (uint64_t)time(NULL);
+    uint64_t page_count = jl_current_pg_count();
+    uint64_t _malloc_bytes = jl_atomic_load_relaxed(&malloc_bytes);
+    uint64_t heap_size = jl_options.fixed_heap_size;
+    int _current_sweep_full = current_sweep_full;
+    int _next_sweep_full = next_sweep_full;
+    printf("\n%lu stock_memory_pool: Current Sweep Full: %d, Next Sweep Full: %d\n", timestamp, _current_sweep_full, _next_sweep_full);
+    printf("\tLive bytes = %ld\n", jl_gc_pool_live_bytes());
+    printf("\tReserved pages = %ld\n", jl_current_pg_count());
+    printf(
+        "\tReserved pages (bytes) = %ld\n",
+        jl_current_pg_count() * 16 * 1024
+    );
+    printf("Malloc Bytes: %ld\n", _malloc_bytes);
+    printf("Total usage: %ld, heap size: %ld\n", page_count * 16384 + malloc_bytes, heap_size);
+
+    fflush(stdout);
 
     gc_n_threads = 0;
     gc_all_tls_states = NULL;
