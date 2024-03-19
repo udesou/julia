@@ -283,7 +283,7 @@ void *jl_create_native_impl(jl_array_t *methods, LLVMOrcThreadSafeModuleRef llvm
     jl_workqueue_t emitted;
     jl_method_instance_t *mi = NULL;
     jl_code_info_t *src = NULL;
-    JL_GC_PUSH1(&src);
+    JL_GC_PUSH1_NO_TPIN(&src);
     auto ct = jl_current_task;
     ct->reentrant_timing++;
     orc::ThreadSafeContext ctx;
@@ -1051,7 +1051,7 @@ void jl_get_llvmf_defn_impl(jl_llvmf_dump_t* dump, jl_method_instance_t *mi, siz
     // get the source code for this function
     jl_value_t *jlrettype = (jl_value_t*)jl_any_type;
     jl_code_info_t *src = NULL;
-    JL_GC_PUSH2(&src, &jlrettype);
+    JL_GC_PUSH2_NO_TPIN(&src, &jlrettype);
     if (jl_is_method(mi->def.method) && mi->def.method->source != NULL && jl_ir_flag_inferred((jl_array_t*)mi->def.method->source)) {
         src = (jl_code_info_t*)mi->def.method->source;
         if (src && !jl_is_code_info(src))
