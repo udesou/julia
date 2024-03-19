@@ -977,19 +977,19 @@ extern void JL_GC_POP() JL_NOTSAFEPOINT;
   jl_pgcstack = (jl_gcframe_t*)&(((void**)rts_var)[-2])
 #else
 // When not using MMTk, default to the stock functions
-#define JL_GC_PUSH1_NO_TPIN(arg1) JL_GC_PUSH1(arg1) 
+#define JL_GC_PUSH1_NO_TPIN(arg1) JL_GC_PUSH1(arg1)
 
 #define JL_GC_PUSH2_NO_TPIN(arg1, arg2) JL_GC_PUSH2(arg1, arg2)
 
-#define JL_GC_PUSH3_NO_TPIN(arg1, arg2, arg3) JL_GC_PUSH3(arg1, arg2, arg3)    
+#define JL_GC_PUSH3_NO_TPIN(arg1, arg2, arg3) JL_GC_PUSH3(arg1, arg2, arg3)
 
 #define JL_GC_PUSH4_NO_TPIN(arg1, arg2, arg3, arg4) JL_GC_PUSH4(arg1, arg2, arg3, arg4)
 
 #define JL_GC_PUSH5_NO_TPIN(arg1, arg2, arg3, arg4, arg5) JL_GC_PUSH5(arg1, arg2, arg3, arg4, arg5)
 
-#define JL_GC_PUSH6_NO_TPIN(arg1, arg2, arg3, arg4, arg5, arg6) JL_GC_PUSH6(arg1, arg2, arg3, arg4, arg5, arg6) 
+#define JL_GC_PUSH6_NO_TPIN(arg1, arg2, arg3, arg4, arg5, arg6) JL_GC_PUSH6(arg1, arg2, arg3, arg4, arg5, arg6)
 
-#define JL_GC_PUSH7_NO_TPIN(arg1, arg2, arg3, arg4, arg5, arg6, arg7) JL_GC_PUSH7(arg1, arg2, arg3, arg4, arg5, arg6, arg7) 
+#define JL_GC_PUSH7_NO_TPIN(arg1, arg2, arg3, arg4, arg5, arg6, arg7) JL_GC_PUSH7(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 
 #define JL_GC_PUSH8_NO_TPIN(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) JL_GC_PUSH8(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 
