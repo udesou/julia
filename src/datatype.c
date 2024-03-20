@@ -675,7 +675,7 @@ JL_DLLEXPORT jl_datatype_t *jl_new_datatype(
 {
     jl_datatype_t *t = NULL;
     jl_typename_t *tn = NULL;
-    JL_GC_PUSH2(&t, &tn);
+    JL_GC_PUSH2_NO_TPIN(&t, &tn);
 
     assert(parameters);
 
@@ -1178,7 +1178,7 @@ JL_DLLEXPORT jl_value_t *jl_atomic_cmpswap_bits(jl_datatype_t *dt, jl_datatype_t
         abort();
     }
     if (isptr) {
-        JL_GC_PUSH1(&y);
+        JL_GC_PUSH1_NO_TPIN(&y);
         jl_value_t *z = jl_gc_alloc(ct->ptls, jl_datatype_size(rettyp), rettyp);
         *(jl_value_t**)z = y;
         JL_GC_POP();
@@ -1407,7 +1407,7 @@ JL_DLLEXPORT jl_value_t *jl_new_structv(jl_datatype_t *type, jl_value_t **args, 
         if (jl_field_offset(type, 0) != 0) {
             memset(jl_data_ptr(jv), 0, jl_field_offset(type, 0));
         }
-        JL_GC_PUSH1(&jv);
+        JL_GC_PUSH1_NO_TPIN(&jv);
         for (size_t i = 0; i < na; i++) {
             set_nth_field(type, jv, i, args[i], 0);
         }
@@ -1456,7 +1456,7 @@ JL_DLLEXPORT jl_value_t *jl_new_structt(jl_datatype_t *type, jl_value_t *tup)
     else if (jl_field_offset(type, 0) != 0) {
         memset(jl_data_ptr(jv), 0, jl_field_offset(type, 0));
     }
-    JL_GC_PUSH2(&jv, &fi);
+    JL_GC_PUSH2_NO_TPIN(&jv, &fi);
     for (size_t i = 0; i < nargs; i++) {
         jl_value_t *ft = jl_field_type_concrete(type, i);
         fi = jl_get_nth_field(tup, i);
@@ -1720,7 +1720,7 @@ jl_value_t *modify_nth_field(jl_datatype_t *st, jl_value_t *v, size_t i, jl_valu
     if (isatomic && jl_field_isptr(st, i))
         jl_fence(); // load was previously only relaxed
     jl_value_t **args;
-    JL_GC_PUSHARGS(args, 2);
+    JL_GC_PUSHARGS_NO_TPIN(args, 2);
     args[0] = r;
     while (1) {
         args[1] = rhs;
@@ -1819,7 +1819,7 @@ jl_value_t *replace_nth_field(jl_datatype_t *st, jl_value_t *v, size_t i, jl_val
             if (success || !jl_egal(r, expected))
                 break;
         }
-        JL_GC_PUSH1(&r);
+        JL_GC_PUSH1_NO_TPIN(&r);
         r = jl_new_struct(rettyp, r, success ? jl_true : jl_false);
         JL_GC_POP();
     }

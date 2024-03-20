@@ -73,7 +73,7 @@ JL_DLLEXPORT void jl_gc_init_finalizer_rng_state(void)
 STATIC_INLINE void jl_gc_push_arraylist(jl_task_t *ct, arraylist_t *list) JL_NOTSAFEPOINT
 {
     void **items = list->items;
-    items[0] = (void*)JL_GC_ENCODE_PUSHARGS(list->len - 2);
+    items[0] = (void*)JL_GC_ENCODE_PUSHARGS_NO_TPIN(list->len - 2);
     items[1] = ct->gcstack;
     ct->gcstack = (jl_gcframe_t*)items;
 }

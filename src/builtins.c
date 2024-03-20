@@ -591,7 +591,7 @@ static jl_value_t *do_apply(jl_value_t **args, uint32_t nargs, jl_value_t *itera
             if (jl_is_array(args[1])) {
                 size_t n = jl_array_len(args[1]);
                 jl_svec_t *t = jl_alloc_svec(n);
-                JL_GC_PUSH1(&t);
+                JL_GC_PUSH1_NO_TPIN(&t);
                 for (size_t i = 0; i < n; i++) {
                     jl_svecset(t, i, jl_arrayref((jl_array_t*)args[1], i));
                 }
@@ -633,7 +633,7 @@ static jl_value_t *do_apply(jl_value_t **args, uint32_t nargs, jl_value_t *itera
     size_t stackalloc = onstack ? (precount + 4 * extra + (extra ? 16 : 0)) : 1;
     size_t n_alloc;
     jl_value_t **roots;
-    JL_GC_PUSHARGS(roots, stackalloc + (extra ? 2 : 0));
+    JL_GC_PUSHARGS_NO_TPIN(roots, stackalloc + (extra ? 2 : 0));
     jl_value_t **newargs;
     jl_svec_t *arg_heap = NULL;
     if (onstack) {
@@ -735,7 +735,7 @@ static jl_value_t *do_apply(jl_value_t **args, uint32_t nargs, jl_value_t *itera
     if (arg_heap) {
         // optimization: keep only the first root, free the others
 #ifndef __clang_gcanalyzer__
-        ((void**)roots)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(1);
+        ((void**)roots)[-2] = (void*)JL_GC_ENCODE_PUSHARGS_NO_TPIN(1);
 #endif
     }
     jl_value_t *result = jl_apply(newargs, n);
@@ -1048,7 +1048,7 @@ static jl_value_t *get_fieldtype(jl_value_t *t, jl_value_t *f, int dothrow)
 {
     if (jl_is_unionall(t)) {
         jl_value_t *u = t;
-        JL_GC_PUSH1(&u);
+        JL_GC_PUSH1_NO_TPIN(&u);
         u = get_fieldtype(((jl_unionall_t*)t)->body, f, dothrow);
         u = jl_type_unionall(((jl_unionall_t*)t)->var, u);
         JL_GC_POP();
@@ -1057,7 +1057,7 @@ static jl_value_t *get_fieldtype(jl_value_t *t, jl_value_t *f, int dothrow)
     if (jl_is_uniontype(t)) {
         jl_value_t **u;
         jl_value_t *r;
-        JL_GC_PUSHARGS(u, 2);
+        JL_GC_PUSHARGS_NO_TPIN(u, 2);
         u[0] = get_fieldtype(((jl_uniontype_t*)t)->a, f, 0);
         u[1] = get_fieldtype(((jl_uniontype_t*)t)->b, f, 0);
         if (u[0] == jl_bottom_type && u[1] == jl_bottom_type && dothrow) {
@@ -1098,7 +1098,7 @@ static jl_value_t *get_fieldtype(jl_value_t *t, jl_value_t *f, int dothrow)
             tt = ((jl_tvar_t*)tt)->ub;
         if (tt == (jl_value_t*)jl_any_type)
             return (jl_value_t*)jl_any_type;
-        JL_GC_PUSH1(&f);
+        JL_GC_PUSH1_NO_TPIN(&f);
         if (jl_is_symbol(f))
             f = jl_box_long(field_index+1);
         jl_value_t *ft = get_fieldtype(tt, f, dothrow);
@@ -1361,7 +1361,7 @@ JL_CALLABLE(jl_f_invoke)
 {
     JL_NARGSV(invoke, 2);
     jl_value_t *argtypes = args[1];
-    JL_GC_PUSH1(&argtypes);
+    JL_GC_PUSH1_NO_TPIN(&argtypes);
     if (!jl_is_tuple_type(jl_unwrap_unionall(args[1])))
         jl_type_error("invoke", (jl_value_t*)jl_anytuple_type_type, args[1]);
     if (!jl_tuple_isa(&args[2], nargs - 2, (jl_datatype_t*)argtypes))
@@ -1377,7 +1377,7 @@ jl_expr_t *jl_exprn(jl_sym_t *head, size_t n)
 {
     jl_task_t *ct = jl_current_task;
     jl_array_t *ar = jl_alloc_vec_any(n);
-    JL_GC_PUSH1(&ar);
+    JL_GC_PUSH1_NO_TPIN(&ar);
     jl_expr_t *ex = (jl_expr_t*)jl_gc_alloc(ct->ptls, sizeof(jl_expr_t),
                                             jl_expr_type);
     ex->head = head;
@@ -1392,7 +1392,7 @@ JL_CALLABLE(jl_f__expr)
     JL_NARGSV(Expr, 1);
     JL_TYPECHK(Expr, symbol, args[0]);
     jl_array_t *ar = jl_alloc_vec_any(nargs-1);
-    JL_GC_PUSH1(&ar);
+    JL_GC_PUSH1_NO_TPIN(&ar);
     for(size_t i=0; i < nargs-1; i++)
         jl_array_ptr_set(ar, i, args[i+1]);
     jl_expr_t *ex = (jl_expr_t*)jl_gc_alloc(ct->ptls, sizeof(jl_expr_t),
@@ -1609,7 +1609,7 @@ JL_CALLABLE(jl_f__compute_sparams)
     JL_TYPECHK(_compute_sparams, method, (jl_value_t*)m);
     jl_datatype_t *tt = jl_inst_arg_tuple_type(args[1], &args[2], nargs-1, 1);
     jl_svec_t *env = jl_emptysvec;
-    JL_GC_PUSH2(&env, &tt);
+    JL_GC_PUSH2_NO_TPIN(&env, &tt);
     jl_type_intersection_env((jl_value_t*)tt, m->sig, &env);
     JL_GC_POP();
     return (jl_value_t*)env;
@@ -1778,7 +1778,7 @@ static int equiv_type(jl_value_t *ta, jl_value_t *tb)
         return 0;
     jl_value_t *a=NULL, *b=NULL;
     int ok = 1;
-    JL_GC_PUSH2(&a, &b);
+    JL_GC_PUSH2_NO_TPIN(&a, &b);
     a = jl_rewrap_unionall((jl_value_t*)dta->super, dta->name->wrapper);
     b = jl_rewrap_unionall((jl_value_t*)dtb->super, dtb->name->wrapper);
     if (!jl_types_equal(a, b))

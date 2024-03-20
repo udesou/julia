@@ -2558,7 +2558,7 @@ static jl_value_t *static_eval(jl_codectx_t &ctx, jl_value_t *ex)
                     size_t n = jl_array_dim0(e->args)-1;
                     if (n==0 && f==jl_builtin_tuple) return (jl_value_t*)jl_emptytuple;
                     jl_value_t **v;
-                    JL_GC_PUSHARGS(v, n+1);
+                    JL_GC_PUSHARGS_NO_TPIN(v, n+1);
                     v[0] = f;
                     for (i = 0; i < n; i++) {
                         v[i+1] = static_eval(ctx, jl_exprarg(e, i+1));
@@ -5160,7 +5160,7 @@ static std::pair<Function*, Function*> get_oc_function(jl_codectx_t &ctx, jl_met
     jl_svec_t *sig_args = NULL;
     jl_value_t *sigtype = NULL;
     jl_code_info_t *ir = NULL;
-    JL_GC_PUSH3(&sig_args, &sigtype, &ir);
+    JL_GC_PUSH3_NO_TPIN(&sig_args, &sigtype, &ir);
 
     size_t nsig = 1 + jl_svec_len(argt_typ->parameters);
     sig_args = jl_alloc_svec_uninit(nsig);
@@ -5494,7 +5494,7 @@ static jl_cgval_t emit_expr(jl_codectx_t &ctx, jl_value_t *expr, ssize_t ssaidx_
         if (can_optimize) {
             jl_value_t *closure_t = NULL;
             jl_tupletype_t *env_t = NULL;
-            JL_GC_PUSH2(&closure_t, &env_t);
+            JL_GC_PUSH2_NO_TPIN(&closure_t, &env_t);
 
             jl_value_t **env_component_ts = (jl_value_t**)alloca(sizeof(jl_value_t*) * (nargs-4));
             for (size_t i = 0; i < nargs - 4; ++i) {
@@ -6008,7 +6008,7 @@ static Function* gen_cfun_wrapper(
     // XXX: these values may need to be rooted until the end of the function
     jl_value_t *rt1 = NULL;
     jl_value_t *rt2 = NULL;
-    JL_GC_PUSH2(&rt1, &rt2);
+    JL_GC_PUSH2_NO_TPIN(&rt1, &rt2);
     for (size_t i = 0; i < nargs; ++i, ++AI) {
         // figure out how to unpack this argument type
         Value *val = &*AI;
@@ -6410,7 +6410,7 @@ static jl_cgval_t emit_cfunction(jl_codectx_t &ctx, jl_value_t *output_type, con
 
     jl_array_t *closure_types = NULL;
     jl_value_t *sigt = NULL; // dispatch-sig = type signature with Ref{} annotations removed and applied to the env
-    JL_GC_PUSH4(&declrt, &sigt, &rt, &closure_types);
+    JL_GC_PUSH4_NO_TPIN(&declrt, &sigt, &rt, &closure_types);
     Type *lrt;
     bool retboxed;
     bool static_rt;
@@ -6563,7 +6563,7 @@ const char *jl_generate_ccallable(LLVMOrcThreadSafeModuleRef llvmmod, void *sysi
         lcrt = JuliaType::get_prjlvalue_ty(lcrt->getContext());
     size_t nargs = jl_nparams(sigt)-1;
     jl_svec_t *argtypes = NULL;
-    JL_GC_PUSH1(&argtypes);
+    JL_GC_PUSH1_NO_TPIN(&argtypes);
     argtypes = jl_alloc_svec(nargs);
     for (size_t i = 0; i < nargs; i++) {
         jl_svecset(argtypes, i, jl_tparam(sigt, i+1));
@@ -6904,7 +6904,7 @@ static jl_datatype_t *compute_va_type(jl_method_instance_t *lam, size_t nreq)
 {
     size_t nvargs = jl_nparams(lam->specTypes)-nreq;
     jl_svec_t *tupargs = jl_alloc_svec(nvargs);
-    JL_GC_PUSH1(&tupargs);
+    JL_GC_PUSH1_NO_TPIN(&tupargs);
     for (size_t i = nreq; i < jl_nparams(lam->specTypes); ++i) {
         jl_value_t *argType = jl_nth_slot_type(lam->specTypes, i);
         if (is_uniquerep_Type(argType))
@@ -6935,7 +6935,7 @@ static jl_llvm_functions_t
     jl_llvm_functions_t declarations;
     jl_codectx_t ctx(*params.tsctx.getContext(), params);
     jl_datatype_t *vatyp = NULL;
-    JL_GC_PUSH2(&ctx.code, &vatyp);
+    JL_GC_PUSH2_NO_TPIN(&ctx.code, &vatyp);
     ctx.code = src->code;
     ctx.source = src;
 
@@ -8516,7 +8516,7 @@ jl_llvm_functions_t jl_emit_codeinst(
         jl_codegen_params_t &params)
 {
     JL_TIMING(CODEGEN);
-    JL_GC_PUSH1(&src);
+    JL_GC_PUSH1_NO_TPIN(&src);
     if (!src) {
         src = (jl_code_info_t*)jl_atomic_load_relaxed(&codeinst->inferred);
         jl_method_t *def = codeinst->def->def.method;
@@ -8596,7 +8596,7 @@ void jl_compile_workqueue(
 {
     JL_TIMING(CODEGEN);
     jl_code_info_t *src = NULL;
-    JL_GC_PUSH1(&src);
+    JL_GC_PUSH1_NO_TPIN(&src);
     while (!params.workqueue.empty()) {
         jl_code_instance_t *codeinst;
         Function *protodecl;
