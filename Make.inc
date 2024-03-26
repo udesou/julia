@@ -86,6 +86,9 @@ HAVE_SSP := 0
 WITH_GC_VERIFY := 0
 WITH_GC_DEBUG_ENV := 0
 
+# Overwrite Julia's GC heuristics and only trigger a GC if the heap is full (fixed_heap_size needs to be set in this build)
+WITH_GC_FIXED_HEAP ?= 0
+
 # MMTk GC
 WITH_MMTK ?= 0
 
@@ -736,6 +739,11 @@ endif
 ifeq ($(WITH_GC_DEBUG_ENV), 1)
 JCXXFLAGS += -DGC_DEBUG_ENV
 JCFLAGS += -DGC_DEBUG_ENV
+endif
+
+ifeq ($(WITH_GC_FIXED_HEAP), 1)
+JCXXFLAGS += -DGC_FIXED_HEAP
+JCFLAGS += -DGC_FIXED_HEAP
 endif
 
 ifeq ($(WITH_MMTK), 1)
