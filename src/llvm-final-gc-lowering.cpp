@@ -145,7 +145,7 @@ void FinalLowerGC::lowerPushGCFrame(CallInst *target, Function &F)
     IRBuilder<> builder(target->getContext());
     builder.SetInsertPoint(&*(++BasicBlock::iterator(target)));
     StoreInst *inst = builder.CreateAlignedStore(
-                ConstantInt::get(getSizeTy(F.getContext()), JL_GC_ENCODE_PUSHARGS_NO_TPIN(nRoots)),
+                ConstantInt::get(getSizeTy(F.getContext()), JL_GC_ENCODE_PUSHARGS(nRoots)),
                 builder.CreateBitCast(
                         builder.CreateConstInBoundsGEP1_32(T_prjlvalue, gcframe, 0),
                         getSizeTy(F.getContext())->getPointerTo()),

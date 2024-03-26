@@ -317,7 +317,7 @@ restart:
         }
     }
     if (j < l) {
-        JL_GC_PUSH1_NO_TPIN(&a);
+        JL_GC_PUSH1(&a);
         jl_array_del_end(a, l - j);
         JL_GC_POP();
     }

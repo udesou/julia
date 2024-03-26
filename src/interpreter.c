@@ -60,14 +60,15 @@ extern void JL_GC_ENABLEFRAME(interpreter_state*) JL_NOTSAFEPOINT;
 #define JL_GC_ENCODE_PUSHFRAME_NO_TPIN(n)  JL_GC_ENCODE_PUSHFRAME(n)
 #endif
 
-#define JL_GC_PUSHFRAME(frame,locals,n)                                             \
-  JL_CPPALLOCA(frame, sizeof(*frame)+(((n)+3)*sizeof(jl_value_t*)));                \
+#define JL_GC_PUSHFRAME(frame,locals,n, locid)                                     \
+  JL_CPPALLOCA(frame, sizeof(*frame)+(((n+1)+3)*sizeof(jl_value_t*)));                \
   ((void**)&frame[1])[0] = NULL;                                                    \
   ((void**)&frame[1])[1] = (void*)JL_GC_ENCODE_PUSHFRAME(n);                        \
   ((void**)&frame[1])[2] = jl_pgcstack;                                             \
-  memset(&((void**)&frame[1])[3], 0, (n)*sizeof(jl_value_t*));                      \
+  memset(&((void**)&frame[1])[3], 0, (n+1)*sizeof(jl_value_t*));                      \
   jl_pgcstack = (jl_gcframe_t*)&(((void**)&frame[1])[1]);                           \
-  locals = &((jl_value_t**)&frame[1])[3];
+  locals = &((jl_value_t**)&frame[1])[3];                                           \
+  ((void**)&frame[1])[n] = locid
 
 // we define this separately so that we can populate the frame before we add it to the backtrace
 // it's recommended to mark the containing function with NOINLINE, though not essential

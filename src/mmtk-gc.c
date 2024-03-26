@@ -116,6 +116,8 @@ inline void jl_free_aligned(void *p) JL_NOTSAFEPOINT
 }
 #endif
 
+void jl_free_aligned(void *p) JL_NOTSAFEPOINT;
+
 void jl_gc_free_array(jl_array_t *a) JL_NOTSAFEPOINT
 {
     if (a->flags.how == 2) {
@@ -420,6 +422,9 @@ void jl_gc_init(void)
 #endif
 
     mmtk_julia_copy_stack_check(copy_stacks);
+
+    printf("size of size_t = %d\n", sizeof(size_t));
+    fflush(stdout);
 
     // if only max size is specified initialize MMTk with a fixed size heap
     // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.

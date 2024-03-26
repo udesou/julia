@@ -2979,7 +2979,7 @@ static jl_value_t *static_constant_instance(const llvm::DataLayout &DL, Constant
         return NULL;
 
     jl_value_t **flds;
-    JL_GC_PUSHARGS_NO_TPIN(flds, nargs);
+    JL_GC_PUSHARGS(flds, nargs);
     for (size_t i = 0; i < nargs; i++) {
         jl_value_t *ft = jl_field_type(jst, i);
         if (jl_field_isptr(jst, i) || jl_is_uniontype(ft)) {

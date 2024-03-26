@@ -839,6 +839,7 @@ struct _jl_gcframe_t {
     size_t nroots;
     struct _jl_gcframe_t *prev;
     // actual roots go here
+    // final value indicates id from where it's been pushed from
 };
 
 // NOTE: it is the caller's responsibility to make sure arguments are
@@ -891,43 +892,44 @@ extern void JL_GC_POP() JL_NOTSAFEPOINT;
 
 #else
 
-#define JL_GC_PUSH1(arg1)                                                                               \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(1), jl_pgcstack, arg1};                                 \
+#define JL_GC_PUSH1(arg1, locid)                                                                               \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(1), jl_pgcstack, arg1, locid};                                 \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH2(arg1, arg2)                                                                         \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(2), jl_pgcstack, arg1, arg2};                           \
+#define JL_GC_PUSH2(arg1, arg2, locid)                                                                         \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(2), jl_pgcstack, arg1, arg2, locid};                           \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH3(arg1, arg2, arg3)                                                                   \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(3), jl_pgcstack, arg1, arg2, arg3};                     \
+#define JL_GC_PUSH3(arg1, arg2, arg3, locid)                                                                   \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(3), jl_pgcstack, arg1, arg2, arg3, locid};                     \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH4(arg1, arg2, arg3, arg4)                                                             \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(4), jl_pgcstack, arg1, arg2, arg3, arg4};               \
+#define JL_GC_PUSH4(arg1, arg2, arg3, arg4, locid)                                                             \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(4), jl_pgcstack, arg1, arg2, arg3, arg4, locid};               \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH5(arg1, arg2, arg3, arg4, arg5)                                                       \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(5), jl_pgcstack, arg1, arg2, arg3, arg4, arg5};         \
+#define JL_GC_PUSH5(arg1, arg2, arg3, arg4, arg5, locid)                                                       \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(5), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, locid};         \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH6(arg1, arg2, arg3, arg4, arg5, arg6)                                                 \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(6), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6};   \
+#define JL_GC_PUSH6(arg1, arg2, arg3, arg4, arg5, arg6, locid)                                                 \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(6), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, locid};   \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH7(arg1, arg2, arg3, arg4, arg5, arg6, arg7)                                           \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(7), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7}; \
+#define JL_GC_PUSH7(arg1, arg2, arg3, arg4, arg5, arg6, arg7, locid)                                           \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(7), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, locid}; \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSH8(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)                                     \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(8), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8}; \
+#define JL_GC_PUSH8(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, locid)                                     \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(8), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, locid}; \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
-#define JL_GC_PUSHARGS(rts_var,n)                                                                       \
-  rts_var = ((jl_value_t**)alloca(((n)+2)*sizeof(jl_value_t*)))+2;                                      \
+#define JL_GC_PUSHARGS(rts_var,n, locid)                                                                       \
+  rts_var = ((jl_value_t**)alloca(((n+1)+2)*sizeof(jl_value_t*)))+2;                                      \
   ((void**)rts_var)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(n);                                              \
   ((void**)rts_var)[-1] = jl_pgcstack;                                                                  \
-  memset((void*)rts_var, 0, (n)*sizeof(jl_value_t*));                                                   \
+  memset((void*)rts_var, 0, (n+1)*sizeof(jl_value_t*));                                                   \
+  ((void**)rts_var)[n] = locid;                                                                       \
   jl_pgcstack = (jl_gcframe_t*)&(((void**)rts_var)[-2])
 
 #define JL_GC_POP() (jl_pgcstack = jl_pgcstack->prev)
