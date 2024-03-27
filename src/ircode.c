@@ -841,7 +841,7 @@ JL_DLLEXPORT jl_array_t *jl_compress_ir(jl_method_t *m, jl_code_info_t *code)
     if (jl_array_len(m->roots) == 0) {
         m->roots = NULL;
     }
-    JL_GC_PUSH1(&v);
+    JL_GC_PUSH1(&v, 89);
     jl_gc_enable(en);
     JL_UNLOCK(&m->writelock); // Might GC
     JL_GC_POP();
@@ -920,7 +920,7 @@ JL_DLLEXPORT jl_code_info_t *jl_uncompress_ir(jl_method_t *m, jl_code_instance_t
 
     assert(ios_getc(s.s) == -1);
     ios_close(s.s);
-    JL_GC_PUSH1(&code);
+    JL_GC_PUSH1(&code, 90);
     jl_gc_enable(en);
     JL_UNLOCK(&m->writelock); // Might GC
     JL_GC_POP();
@@ -1026,7 +1026,7 @@ JL_DLLEXPORT jl_array_t *jl_uncompress_argnames(jl_value_t *syms)
     }
     namestr = jl_string_data(syms);
     jl_array_t *names = jl_alloc_array_1d(jl_array_symbol_type, len);
-    JL_GC_PUSH1(&names);
+    JL_GC_PUSH1(&names, 91);
     for (i = 0; i < len; i++) {
         size_t namelen = strlen(namestr);
         jl_sym_t *name = _jl_symbol(namestr, namelen);

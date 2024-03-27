@@ -307,7 +307,7 @@ JL_DLLEXPORT jl_value_t *jl_readuntil(ios_t *s, uint8_t delim, uint8_t str, uint
             ((char*)a->data)[n] = '\0';
         }
         if (str) {
-            JL_GC_PUSH1(&a);
+            JL_GC_PUSH1(&a, 175);
             jl_value_t *st = jl_array_to_string(a);
             JL_GC_POP();
             return st;

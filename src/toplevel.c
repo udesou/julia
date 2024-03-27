@@ -136,7 +136,7 @@ static jl_value_t *jl_eval_module_expr(jl_module_t *parent_module, jl_expr_t *ex
 
     jl_module_t *newm = jl_new_module(name);
     jl_value_t *form = (jl_value_t*)newm;
-    JL_GC_PUSH1(&form);
+    JL_GC_PUSH1(&form, 261);
     JL_LOCK(&jl_modules_mutex);
     PTRHASH_PIN(newm)
     PTRHASH_PIN((void*)((uintptr_t)HT_NOTFOUND + 1))
@@ -281,7 +281,7 @@ static jl_value_t *jl_eval_dot_expr(jl_module_t *m, jl_value_t *x, jl_value_t *f
 {
     jl_task_t *ct = jl_current_task;
     jl_value_t **args;
-    JL_GC_PUSHARGS(args, 3);
+    JL_GC_PUSHARGS(args, 3, 262);
     args[1] = jl_toplevel_eval_flex(m, x, fast, 0);
     args[2] = jl_toplevel_eval_flex(m, f, fast, 0);
     if (jl_is_module(args[1])) {
@@ -652,7 +652,7 @@ static void check_macro_rename(jl_sym_t *from, jl_sym_t *to, const char *keyword
 static void jl_eval_errorf(jl_module_t *m, const char* fmt, ...)
 {
     jl_value_t *throw_ex = (jl_value_t*)jl_exprn(jl_call_sym, 2);
-    JL_GC_PUSH1(&throw_ex);
+    JL_GC_PUSH1(&throw_ex, 263);
     jl_exprargset(throw_ex, 0, jl_builtin_throw);
     va_list args;
     va_start(args, fmt);
@@ -703,7 +703,7 @@ jl_value_t *jl_toplevel_eval_flex(jl_module_t *JL_NONNULL m, jl_value_t *e, int 
 
     jl_method_instance_t *mfunc = NULL;
     jl_code_info_t *thk = NULL;
-    JL_GC_PUSH3(&mfunc, &thk, &ex);
+    JL_GC_PUSH3(&mfunc, &thk, &ex, 264);
 
     size_t last_age = ct->world_age;
     if (!expanded && jl_needs_lowering(e)) {
@@ -986,7 +986,7 @@ JL_DLLEXPORT jl_value_t *jl_toplevel_eval_in(jl_module_t *m, jl_value_t *ex)
 JL_DLLEXPORT jl_value_t *jl_infer_thunk(jl_code_info_t *thk, jl_module_t *m)
 {
     jl_method_instance_t *li = method_instance_for_thunk(thk, m);
-    JL_GC_PUSH1(&li);
+    JL_GC_PUSH1(&li, 265);
     jl_resolve_globals_in_ir((jl_array_t*)thk->code, m, NULL, 0);
     jl_task_t *ct = jl_current_task;
     jl_code_info_t *src = jl_type_infer(li, ct->world_age, 0);
@@ -1017,7 +1017,7 @@ static jl_value_t *jl_parse_eval_all(jl_module_t *module, jl_value_t *text,
     jl_value_t *result = jl_nothing;
     jl_value_t *ast = NULL;
     jl_value_t *expression = NULL;
-    JL_GC_PUSH3(&ast, &result, &expression);
+    JL_GC_PUSH3(&ast, &result, &expression, 266);
 
     ast = jl_svecref(jl_parse(jl_string_data(text), jl_string_len(text),
                               filename, 1, 0, (jl_value_t*)jl_all_sym), 0);
@@ -1091,7 +1091,7 @@ static jl_value_t *jl_file_content_as_string(jl_value_t *filename)
 JL_DLLEXPORT jl_value_t *jl_load_(jl_module_t *module, jl_value_t *filename)
 {
     jl_value_t *text = jl_file_content_as_string(filename);
-    JL_GC_PUSH1(&text);
+    JL_GC_PUSH1(&text, 267);
     jl_value_t *result = jl_parse_eval_all(module, text, filename);
     JL_GC_POP();
     return result;
@@ -1103,7 +1103,7 @@ JL_DLLEXPORT jl_value_t *jl_load_(jl_module_t *module, jl_value_t *filename)
 JL_DLLEXPORT jl_value_t *jl_load(jl_module_t *module, const char *filename)
 {
     jl_value_t *filename_ = NULL;
-    JL_GC_PUSH1(&filename_);
+    JL_GC_PUSH1(&filename_, 268);
     filename_ = jl_cstr_to_string(filename);
     jl_value_t *result = jl_load_(module, filename_);
     JL_GC_POP();
@@ -1117,7 +1117,7 @@ JL_DLLEXPORT jl_value_t *jl_load_file_string(const char *text, size_t len,
 {
     jl_value_t *text_ = NULL;
     jl_value_t *filename_ = NULL;
-    JL_GC_PUSH2(&text_, &filename_);
+    JL_GC_PUSH2(&text_, &filename_, 269);
     text_ = jl_pchar_to_string(text, len);
     filename_ = jl_cstr_to_string(filename);
     jl_value_t *result = jl_parse_eval_all(module, text_, filename_);

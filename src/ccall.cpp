@@ -676,7 +676,7 @@ static jl_cgval_t emit_cglobal(jl_codectx_t &ctx, jl_value_t **args, size_t narg
     jl_value_t *rt = NULL;
     Value *res;
     native_sym_arg_t sym = {};
-    JL_GC_PUSH2(&rt, &sym.gcroot);
+    JL_GC_PUSH2(&rt, &sym.gcroot, 176);
 
     if (nargs == 2) {
         rt = static_eval(ctx, args[2]);
@@ -752,7 +752,7 @@ static jl_cgval_t emit_llvmcall(jl_codectx_t &ctx, jl_value_t **args, size_t nar
     JL_NARGSV(llvmcall, 3);
     jl_value_t *rt = NULL, *at = NULL, *ir = NULL, *entry = NULL;
     jl_value_t *ir_arg = args[1];
-    JL_GC_PUSH4(&ir, &rt, &at, &entry);
+    JL_GC_PUSH4(&ir, &rt, &at, &entry, 177);
     if (jl_is_ssavalue(ir_arg))
         ir_arg = jl_arrayref((jl_array_t*)ctx.source->code, ((jl_ssavalue_t*)ir_arg)->id - 1);
     ir = static_eval(ctx, ir_arg);
@@ -1340,7 +1340,7 @@ static jl_cgval_t emit_ccall(jl_codectx_t &ctx, jl_value_t **args, size_t nargs)
     }
     assert(jl_is_symbol(cc_sym));
     native_sym_arg_t symarg = {};
-    JL_GC_PUSH3(&rt, &at, &symarg.gcroot);
+    JL_GC_PUSH3(&rt, &at, &symarg.gcroot, 178);
 
     CallingConv::ID cc = CallingConv::C;
     bool llvmcall = false;

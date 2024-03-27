@@ -161,7 +161,7 @@ static void find_free_typevars(jl_value_t *v, jl_typeenv_t *env, jl_array_t *out
 JL_DLLEXPORT jl_array_t *jl_find_free_typevars(jl_value_t *v)
 {
     jl_array_t *out = jl_alloc_vec_any(0);
-    JL_GC_PUSH1(&out);
+    JL_GC_PUSH1(&out, 24);
     find_free_typevars(v, NULL, out);
     JL_GC_POP();
     return out;
@@ -486,7 +486,7 @@ JL_DLLEXPORT jl_value_t *jl_type_union(jl_value_t **ts, size_t n)
 
     size_t nt = count_union_components(ts, n);
     jl_value_t **temp;
-    JL_GC_PUSHARGS(temp, nt+1);
+    JL_GC_PUSHARGS(temp, nt+1, 25);
     size_t count = 0;
     flatten_type_union(ts, n, temp, &count);
     assert(count == nt);
@@ -562,7 +562,7 @@ jl_value_t *simple_intersect(jl_value_t *a, jl_value_t *b, int overesi)
     size_t ntb = count_union_components(&b, 1);
     size_t nt = nta + ntb;
     jl_value_t **temp;
-    JL_GC_PUSHARGS(temp, nt+1);
+    JL_GC_PUSHARGS(temp, nt+1, 26);
     size_t count = 0;
     flatten_type_union(&a, 1, temp, &count);
     flatten_type_union(&b, 1, temp, &count);
@@ -681,7 +681,7 @@ JL_DLLEXPORT jl_value_t *jl_type_unionall(jl_tvar_t *v, jl_value_t *body)
         }
         if (T_has_tv) {
             jl_value_t *wrapped = jl_type_unionall(v, vm->T);
-            JL_GC_PUSH1(&wrapped);
+            JL_GC_PUSH1(&wrapped, 27);
             wrapped = (jl_value_t*)jl_wrap_vararg(wrapped, vm->N);
             JL_GC_POP();
             return wrapped;
@@ -962,7 +962,7 @@ jl_svec_t *cache_rehash_set(jl_svec_t *a, size_t newsz)
     while (1) {
         size_t i;
         jl_svec_t *newa = jl_svec_fill(newsz, jl_nothing);
-        JL_GC_PUSH1(&newa);
+        JL_GC_PUSH1(&newa, 28);
         for (i = 0; i < sz; i += 1) {
             jl_value_t *val = ol[i];
             if (val != jl_nothing) {
@@ -1108,7 +1108,7 @@ jl_value_t *jl_apply_type(jl_value_t *tc, jl_value_t **params, size_t n)
             return inst_datatype_env(tc, NULL, params, n, NULL, NULL, 0);
         }
     }
-    JL_GC_PUSH1(&tc);
+    JL_GC_PUSH1(&tc, 29);
     jl_value_t *tc0 = tc;
     for (i=0; i < n; i++) {
         if (!jl_is_unionall(tc0))
@@ -1185,7 +1185,7 @@ jl_datatype_t *jl_apply_cmpswap_type(jl_value_t *ty)
     params[0] = ty;
     params[1] = (jl_value_t*)jl_bool_type;
     jl_value_t *tuptyp = (jl_value_t*)jl_apply_tuple_type_v(params, 2);
-    JL_GC_PUSH1(&tuptyp);
+    JL_GC_PUSH1(&tuptyp, 30);
     jl_datatype_t *rettyp = (jl_datatype_t*)jl_apply_type2((jl_value_t*)jl_namedtuple_type, names, tuptyp);
     JL_GC_POP();
     return rettyp;
@@ -1195,7 +1195,7 @@ JL_DLLEXPORT jl_value_t *jl_tupletype_fill(size_t n, jl_value_t *v)
 {
     // TODO: replace with just using NTuple
     jl_value_t *p = NULL;
-    JL_GC_PUSH1(&p);
+    JL_GC_PUSH1(&p, 31);
     p = (jl_value_t*)jl_svec_fill(n, v);
     p = (jl_value_t*)jl_apply_tuple_type((jl_svec_t*)p);
     JL_GC_POP();
@@ -1243,7 +1243,7 @@ jl_value_t *jl_rewrap_unionall(jl_value_t *t, jl_value_t *u)
     // where var doesn't occur in body just return body
     if (!jl_has_typevar(t, v))
         return t;
-    JL_GC_PUSH1(&t);
+    JL_GC_PUSH1(&t, 32);
     //if (v->lb == v->ub)  // TODO maybe
     //    t = jl_substitute_var(body, v, v->ub);
     //else
@@ -1259,7 +1259,7 @@ jl_value_t *jl_rewrap_unionall_(jl_value_t *t, jl_value_t *u)
     if (!jl_is_unionall(u))
         return t;
     t = jl_rewrap_unionall_(t, ((jl_unionall_t*)u)->body);
-    JL_GC_PUSH1(&t);
+    JL_GC_PUSH1(&t, 33);
     t = jl_new_struct(jl_unionall_type, ((jl_unionall_t*)u)->var, t);
     JL_GC_POP();
     return t;
@@ -1414,7 +1414,7 @@ static void check_datatype_parameters(jl_typename_t *tn, jl_value_t **params, si
 {
     jl_value_t *wrapper = tn->wrapper;
     jl_value_t **bounds;
-    JL_GC_PUSHARGS(bounds, np*2);
+    JL_GC_PUSHARGS(bounds, np*2, 34);
     int i = 0;
     while (jl_is_unionall(wrapper)) {
         jl_tvar_t *tv = ((jl_unionall_t*)wrapper)->var;
@@ -1431,7 +1431,7 @@ static void check_datatype_parameters(jl_typename_t *tn, jl_value_t **params, si
             if (tv->lb != bounds[2*i] || tv->ub != bounds[2*i+1])
                 // pass a new version of `tv` containing the instantiated bounds
                 tv = jl_new_typevar(tv->name, bounds[2*i], bounds[2*i+1]);
-            JL_GC_PUSH1(&tv);
+            JL_GC_PUSH1(&tv, 35);
             jl_type_error_rt(jl_symbol_name(tn->name), jl_symbol_name(tv->name), (jl_value_t*)tv, params[i]);
         }
         int j;
@@ -1516,12 +1516,12 @@ int may_substitute_ub(jl_value_t *v, jl_tvar_t *var) JL_NOTSAFEPOINT
 
 jl_value_t *normalize_unionalls(jl_value_t *t)
 {
-    JL_GC_PUSH1(&t);
+    JL_GC_PUSH1(&t, 36);
     if (jl_is_uniontype(t)) {
         jl_uniontype_t *u = (jl_uniontype_t*)t;
         jl_value_t *a = NULL;
         jl_value_t *b = NULL;
-        JL_GC_PUSH2(&a, &b);
+        JL_GC_PUSH2(&a, &b, 37);
         a = normalize_unionalls(u->a);
         b = normalize_unionalls(u->b);
         if (a != u->a || b != u->b) {
@@ -1533,7 +1533,7 @@ jl_value_t *normalize_unionalls(jl_value_t *t)
         jl_unionall_t *u = (jl_unionall_t*)t;
         jl_value_t *body = normalize_unionalls(u->body);
         if (body != u->body) {
-            JL_GC_PUSH1(&body);
+            JL_GC_PUSH1(&body, 38);
             t = jl_new_struct(jl_unionall_type, u->var, body);
             JL_GC_POP();
             u = (jl_unionall_t*)t;
@@ -1630,7 +1630,7 @@ static jl_value_t *inst_datatype_inner(jl_datatype_t *dt, jl_svec_t *p, jl_value
 
     jl_datatype_t *ndt = NULL;
     jl_value_t *last = iparams[ntp - 1];
-    JL_GC_PUSH3(&p, &ndt, &last);
+    JL_GC_PUSH3(&p, &ndt, &last, 39);
 
     if (istuple && ntp > 0 && jl_is_vararg(last)) {
         // normalize Tuple{..., Vararg{Int, 3}} to Tuple{..., Int, Int, Int}
@@ -1808,7 +1808,7 @@ jl_tupletype_t *jl_inst_arg_tuple_type(jl_value_t *arg1, jl_value_t **args, size
     if (tt == NULL) {
         size_t i;
         jl_svec_t *params = jl_alloc_svec(nargs);
-        JL_GC_PUSH1(&params);
+        JL_GC_PUSH1(&params, 40);
         for (i = 0; i < nargs; i++) {
             jl_value_t *ai = (i == 0 ? arg1 : args[i - 1]);
             if (leaf && jl_is_type(ai)) {
@@ -1834,7 +1834,7 @@ static jl_svec_t *inst_ftypes(jl_svec_t *p, jl_typeenv_t *env, jl_typestack_t *s
     size_t i;
     size_t lp = jl_svec_len(p);
     jl_svec_t *np = jl_alloc_svec(lp);
-    JL_GC_PUSH1(&np);
+    JL_GC_PUSH1(&np, 41);
     for (i = 0; i < lp; i++) {
         jl_value_t *pi = jl_svecref(p, i);
         JL_TRY {
@@ -1883,7 +1883,7 @@ static jl_value_t *inst_tuple_w_(jl_value_t *t, jl_typeenv_t *env, jl_typestack_
     }
     jl_value_t **iparams;
     int onstack = ntp < jl_page_size/sizeof(jl_value_t*);
-    JL_GC_PUSHARGS(iparams, onstack ? ntp : 1);
+    JL_GC_PUSHARGS(iparams, onstack ? ntp : 1, 42);
     jl_svec_t *ip_heap = NULL;
     if (!onstack) {
         ip_heap = jl_alloc_svec(ntp);
@@ -1925,7 +1925,7 @@ static jl_value_t *inst_type_w_(jl_value_t *t, jl_typeenv_t *env, jl_typestack_t
         jl_value_t *lb = NULL;
         jl_value_t *var = NULL;
         jl_value_t *newbody = NULL;
-        JL_GC_PUSH3(&lb, &var, &newbody);
+        JL_GC_PUSH3(&lb, &var, &newbody, 43);
         lb = inst_type_w_(ua->var->lb, env, stack, check);
         var = inst_type_w_(ua->var->ub, env, stack, check);
         if (lb != ua->var->lb || var != ua->var->ub) {
@@ -1951,7 +1951,7 @@ static jl_value_t *inst_type_w_(jl_value_t *t, jl_typeenv_t *env, jl_typestack_t
         jl_uniontype_t *u = (jl_uniontype_t*)t;
         jl_value_t *a = inst_type_w_(u->a, env, stack, check);
         jl_value_t *b = NULL;
-        JL_GC_PUSH2(&a, &b);
+        JL_GC_PUSH2(&a, &b, 44);
         b = inst_type_w_(u->b, env, stack, check);
         if (a != u->a || b != u->b) {
             jl_value_t *uargs[2] = {a, b};
@@ -1964,7 +1964,7 @@ static jl_value_t *inst_type_w_(jl_value_t *t, jl_typeenv_t *env, jl_typestack_t
         jl_vararg_t *v = (jl_vararg_t*)t;
         jl_value_t *T = NULL;
         jl_value_t *N = NULL;
-        JL_GC_PUSH2(&T, &N);
+        JL_GC_PUSH2(&T, &N, 45);
         if (v->T) {
             T = inst_type_w_(v->T, env, stack, check);
             if (v->N)
@@ -1987,7 +1987,7 @@ static jl_value_t *inst_type_w_(jl_value_t *t, jl_typeenv_t *env, jl_typestack_t
         return inst_tuple_w_(t, env, stack, check);
     size_t ntp = jl_svec_len(tp);
     jl_value_t **iparams;
-    JL_GC_PUSHARGS(iparams, ntp);
+    JL_GC_PUSHARGS(iparams, ntp, 46);
     int bound = 0;
     for (i = 0; i < ntp; i++) {
         jl_value_t *elt = jl_svecref(tp, i);

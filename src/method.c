@@ -56,7 +56,7 @@ static jl_value_t *resolve_globals(jl_value_t *expr, jl_module_t *module, jl_sve
         if (retval) {
             jl_value_t *val = resolve_globals(retval, module, sparam_vals, binding_effects, eager_resolve);
             if (val != retval) {
-                JL_GC_PUSH1(&val);
+                JL_GC_PUSH1(&val, 49);
                 expr = jl_new_struct(jl_returnnode_type, val);
                 JL_GC_POP();
             }
@@ -67,7 +67,7 @@ static jl_value_t *resolve_globals(jl_value_t *expr, jl_module_t *module, jl_sve
         jl_value_t *cond = resolve_globals(jl_gotoifnot_cond(expr), module, sparam_vals, binding_effects, eager_resolve);
         if (cond != jl_gotoifnot_cond(expr)) {
             intptr_t label = jl_gotoifnot_label(expr);
-            JL_GC_PUSH1(&cond);
+            JL_GC_PUSH1(&cond, 50);
             expr = jl_new_struct_uninit(jl_gotoifnot_type);
             set_nth_field(jl_gotoifnot_type, expr, 0, cond, 0);
             jl_gotoifnot_label(expr) = label;
@@ -485,7 +485,7 @@ JL_DLLEXPORT jl_code_info_t *jl_new_code_info_uninit(void)
 jl_code_info_t *jl_new_code_info_from_ir(jl_expr_t *ir)
 {
     jl_code_info_t *src = NULL;
-    JL_GC_PUSH1(&src);
+    JL_GC_PUSH1(&src, 51);
     src = jl_new_code_info_uninit();
     jl_code_info_set_ir(src, ir);
     JL_GC_POP();
@@ -497,7 +497,7 @@ void jl_add_function_name_to_lineinfo(jl_code_info_t *ci, jl_value_t *name)
     jl_array_t *li = (jl_array_t*)ci->linetable;
     size_t i, n = jl_array_len(li);
     jl_value_t *rt = NULL, *lno = NULL, *inl = NULL;
-    JL_GC_PUSH3(&rt, &lno, &inl);
+    JL_GC_PUSH3(&rt, &lno, &inl, 52);
     for (i = 0; i < n; i++) {
         jl_value_t *ln = jl_array_ptr_ref(li, i);
         assert(jl_typeis(ln, jl_lineinfonode_type));
@@ -519,7 +519,7 @@ STATIC_INLINE jl_value_t *jl_call_staged(jl_method_t *def, jl_value_t *generator
     size_t n_sparams = jl_svec_len(sparam_vals);
     jl_value_t **gargs;
     size_t totargs = 1 + n_sparams + nargs + def->isva;
-    JL_GC_PUSHARGS(gargs, totargs);
+    JL_GC_PUSHARGS(gargs, totargs, 53);
     gargs[0] = generator;
     memcpy(&gargs[1], jl_svec_data(sparam_vals), n_sparams * sizeof(void*));
     memcpy(&gargs[1 + n_sparams], args, nargs * sizeof(void*));
@@ -540,7 +540,7 @@ STATIC_INLINE jl_value_t *jl_call_staged(jl_method_t *def, jl_value_t *generator
 JL_DLLEXPORT jl_code_info_t *jl_expand_and_resolve(jl_value_t *ex, jl_module_t *module,
                                                    jl_svec_t *sparam_vals) {
     jl_code_info_t *func = (jl_code_info_t*)jl_expand((jl_value_t*)ex, module);
-    JL_GC_PUSH1(&func);
+    JL_GC_PUSH1(&func, 54);
     if (jl_is_code_info(func)) {
         jl_array_t *stmts = (jl_array_t*)func->code;
         jl_resolve_globals_in_ir(stmts, module, sparam_vals, 1);
@@ -565,7 +565,7 @@ JL_DLLEXPORT jl_code_info_t *jl_code_for_staged(jl_method_instance_t *linfo)
     assert(jl_is_method(def));
     jl_code_info_t *func = NULL;
     jl_value_t *ex = NULL;
-    JL_GC_PUSH2(&ex, &func);
+    JL_GC_PUSH2(&ex, &func, 55);
     jl_task_t *ct = jl_current_task;
     int last_lineno = jl_lineno;
     int last_in = ct->ptls->in_pure_callback;
@@ -673,7 +673,7 @@ static void jl_method_set_source(jl_method_t *m, jl_code_info_t *src)
 
     jl_array_t *copy = NULL;
     jl_svec_t *sparam_vars = jl_outer_unionall_vars(m->sig);
-    JL_GC_PUSH3(&copy, &sparam_vars, &src);
+    JL_GC_PUSH3(&copy, &sparam_vars, &src, 56);
     assert(jl_typeis(src->code, jl_array_any_type));
     jl_array_t *stmts = (jl_array_t*)src->code;
     size_t i, n = jl_array_len(stmts);
@@ -858,7 +858,7 @@ jl_method_t *jl_make_opaque_closure_method(jl_module_t *module, jl_value_t *name
     int nargs, jl_value_t *functionloc, jl_code_info_t *ci, int isva)
 {
     jl_method_t *m = jl_new_method_uninit(module);
-    JL_GC_PUSH1(&m);
+    JL_GC_PUSH1(&m, 57);
     // TODO: Maybe have a signature of (parent method, stmt#)?
     m->sig = (jl_value_t*)jl_anytuple_type;
     m->isva = isva;
@@ -983,7 +983,7 @@ JL_DLLEXPORT jl_method_t* jl_method_def(jl_svec_t *argdata,
     jl_sym_t *name;
     jl_method_t *m = NULL;
     jl_value_t *argtype = NULL;
-    JL_GC_PUSH3(&f, &m, &argtype);
+    JL_GC_PUSH3(&f, &m, &argtype, 58);
     size_t i, na = jl_svec_len(atypes);
 
     argtype = (jl_value_t*)jl_apply_tuple_type(atypes);
@@ -1187,7 +1187,7 @@ static void prepare_method_for_roots(jl_method_t *m, uint64_t modid)
 // Add a single root with owner `mod` to a method
 JL_DLLEXPORT void jl_add_method_root(jl_method_t *m, jl_module_t *mod, jl_value_t* root)
 {
-    JL_GC_PUSH2(&m, &root);
+    JL_GC_PUSH2(&m, &root, 59);
     uint64_t modid = 0;
     if (mod) {
         assert(jl_is_module(mod));
@@ -1204,7 +1204,7 @@ JL_DLLEXPORT void jl_add_method_root(jl_method_t *m, jl_module_t *mod, jl_value_
 // Add a list of roots with key `modid` to a method
 void jl_append_method_roots(jl_method_t *m, uint64_t modid, jl_array_t* roots)
 {
-    JL_GC_PUSH2(&m, &roots);
+    JL_GC_PUSH2(&m, &roots, 60);
     assert(jl_is_method(m));
     assert(jl_is_array(roots));
     prepare_method_for_roots(m, modid);

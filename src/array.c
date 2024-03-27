@@ -546,7 +546,7 @@ JL_DLLEXPORT jl_array_t *jl_alloc_vec_any(size_t n)
 JL_DLLEXPORT jl_value_t *jl_apply_array_type(jl_value_t *type, size_t dim)
 {
     jl_value_t *boxed_dim = jl_box_long(dim);
-    JL_GC_PUSH1_NO_TPIN(&boxed_dim);
+    JL_GC_PUSH1(&boxed_dim, 63);
     jl_value_t *ret = jl_apply_type2((jl_value_t*)jl_array_type, type, boxed_dim);
     JL_GC_POP();
     return ret;
@@ -603,7 +603,7 @@ JL_DLLEXPORT void jl_arrayset(jl_array_t *a JL_ROOTING_ARGUMENT, jl_value_t *rhs
     assert(i < jl_array_len(a));
     jl_value_t *eltype = jl_tparam0(jl_typeof(a));
     if (eltype != (jl_value_t*)jl_any_type) {
-        JL_GC_PUSH1_NO_TPIN(&rhs);
+        JL_GC_PUSH1(&rhs, 64);
         if (!jl_isa(rhs, eltype))
             jl_type_error("arrayset", eltype, rhs);
         JL_GC_POP();

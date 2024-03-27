@@ -237,7 +237,7 @@ JL_DLLEXPORT jl_value_t *jl_backtrace_from_here(int returnsp, int skip)
     jl_array_t *ip = NULL;
     jl_array_t *sp = NULL;
     jl_array_t *bt2 = NULL;
-    JL_GC_PUSH3(&ip, &sp, &bt2);
+    JL_GC_PUSH3(&ip, &sp, &bt2, 12);
     if (array_ptr_void_type == NULL) {
         array_ptr_void_type = jl_apply_type2((jl_value_t*)jl_array_type, (jl_value_t*)jl_voidpointer_type, jl_box_long(1));
     }
@@ -329,7 +329,7 @@ JL_DLLEXPORT jl_value_t *jl_get_backtrace(void)
         bt_size = jl_excstack_bt_size(s, s->top);
     }
     jl_array_t *bt = NULL, *bt2 = NULL;
-    JL_GC_PUSH2(&bt, &bt2);
+    JL_GC_PUSH2(&bt, &bt2, 13);
     decode_backtrace(bt_data, bt_size, &bt, &bt2);
     jl_svec_t *pair = jl_svec2(bt, bt2);
     JL_GC_POP();
@@ -351,7 +351,7 @@ JL_DLLEXPORT jl_value_t *jl_get_excstack(jl_task_t* task, int include_bt, int ma
     jl_array_t *stack = NULL;
     jl_array_t *bt = NULL;
     jl_array_t *bt2 = NULL;
-    JL_GC_PUSH3(&stack, &bt, &bt2);
+    JL_GC_PUSH3(&stack, &bt, &bt2, 14);
     stack = jl_alloc_array_1d(jl_array_any_type, 0);
     jl_excstack_t *excstack = task->excstack;
     size_t itr = excstack ? excstack->top : 0;
@@ -587,7 +587,7 @@ JL_DLLEXPORT jl_value_t *jl_lookup_code_address(void *ip, int skipC)
     int n = jl_getFunctionInfo(&frames, (uintptr_t)ip, skipC, 0);
     jl_gc_safe_leave(ct->ptls, gc_state);
     jl_value_t *rs = (jl_value_t*)jl_alloc_svec(n);
-    JL_GC_PUSH1(&rs);
+    JL_GC_PUSH1(&rs, 15);
     for (int i = 0; i < n; i++) {
         jl_frame_t frame = frames[i];
         jl_value_t *r = (jl_value_t*)jl_alloc_svec(6);

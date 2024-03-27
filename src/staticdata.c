@@ -2223,7 +2223,7 @@ static void jl_prune_type_cache_linear(jl_svec_t *cache)
 static jl_value_t *strip_codeinfo_meta(jl_method_t *m, jl_value_t *ci_, int orig)
 {
     jl_code_info_t *ci = NULL;
-    JL_GC_PUSH1(&ci);
+    JL_GC_PUSH1(&ci, 112);
     int compressed = 0;
     if (!jl_is_code_info(ci_)) {
         compressed = 1;
@@ -2367,7 +2367,7 @@ JL_DLLEXPORT jl_value_t *jl_as_global_root(jl_value_t *val JL_MAYBE_UNROOTED)
         if ((uint64_t)(n+512) < 1024)
             return jl_box_int64(n);
     }
-    JL_GC_PUSH1(&val);
+    JL_GC_PUSH1(&val, 113);
     JL_LOCK(&global_roots_lock);
     jl_value_t *rval = jl_eqtable_getkey(jl_global_roots_table, val, NULL);
     if (rval) {
@@ -2397,7 +2397,7 @@ static void jl_prepare_serialization_data(jl_array_t *mod_array, jl_array_t *new
     *new_specializations = queue_external_cis(newly_inferred);
 
     // Collect method extensions and edges data
-    JL_GC_PUSH1(&edges_map);
+    JL_GC_PUSH1(&edges_map, 114);
     if (edges)
         edges_map = jl_alloc_vec_any(0);
     *extext_methods = jl_alloc_vec_any(0);
@@ -2758,7 +2758,7 @@ JL_DLLEXPORT void jl_create_system_image(void **_native_data, jl_array_t *workli
     int64_t checksumpos = 0;
     int64_t checksumpos_ff = 0;
     int64_t datastartpos = 0;
-    JL_GC_PUSH6(&mod_array, &extext_methods, &new_specializations, &method_roots_list, &ext_targets, &edges);
+    JL_GC_PUSH6(&mod_array, &extext_methods, &new_specializations, &method_roots_list, &ext_targets, &edges, 115);
 
     if (worklist) {
         mod_array = jl_get_loaded_modules();  // __toplevel__ modules loaded in this session (from Base.loaded_modules_array)
@@ -3446,7 +3446,7 @@ static jl_value_t *jl_restore_package_image_from_stream(ios_t *f, jl_image_t *im
     jl_svec_t *cachesizes_sv = NULL;
     char *base;
     arraylist_t ccallable_list;
-    JL_GC_PUSH8(&restored, &init_order, &extext_methods, &new_specializations, &method_roots_list, &ext_targets, &edges, &cachesizes_sv);
+    JL_GC_PUSH8(&restored, &init_order, &extext_methods, &new_specializations, &method_roots_list, &ext_targets, &edges, &cachesizes_sv, 116);
 
     { // make a permanent in-memory copy of f (excluding the header)
         ios_bufmode(f, bm_none);

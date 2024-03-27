@@ -81,7 +81,7 @@ JL_DLLEXPORT void jl_iolock_end(void)
 static void jl_uv_call_close_callback(jl_value_t *val)
 {
     jl_value_t **args;
-    JL_GC_PUSHARGS(args, 2); // val is "rooted" in the finalizer list only right now
+    JL_GC_PUSHARGS(args, 2, 127); // val is "rooted" in the finalizer list only right now
     args[0] = jl_get_global(jl_base_relative_to(((jl_datatype_t*)jl_typeof(val))->name->module),
             jl_symbol("_uv_hook_close")); // topmod(typeof(val))._uv_hook_close
     args[1] = val;

@@ -18,7 +18,7 @@ JL_DLLEXPORT jl_array_t *jl_idtable_rehash(jl_array_t *a, size_t newsz)
     jl_array_t *newa = jl_alloc_vec_any(newsz);
     // keep the original array in the original slot since we need `ol`
     // to be valid in the loop below.
-    JL_GC_PUSH2(&newa, &a);
+    JL_GC_PUSH2(&newa, &a, 185);
     for (i = 0; i < sz; i += 2) {
         if (ol[i + 1] != NULL) {
             jl_table_assign_bp(&newa, ol[i], ol[i + 1]);

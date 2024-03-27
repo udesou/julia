@@ -270,7 +270,7 @@ JL_DLLEXPORT void jl_atexit_hook(int exitcode)
         jl_value_t *f = jl_get_global(jl_base_module, jl_symbol("_atexit"));
         if (f != NULL) {
             jl_value_t **fargs;
-            JL_GC_PUSHARGS(fargs, 2);
+            JL_GC_PUSHARGS(fargs, 2, 65);
             fargs[0] = f;
             fargs[1] = jl_box_int32(exitcode);
             JL_TRY {
@@ -861,7 +861,7 @@ static NOINLINE void _finish_julia_init(JL_IMAGE_SEARCH rel, jl_ptls_t ptls, jl_
 
     if (jl_options.image_file && (!jl_generating_output() || jl_options.incremental) && jl_module_init_order) {
         jl_array_t *init_order = jl_module_init_order;
-        JL_GC_PUSH1(&init_order);
+        JL_GC_PUSH1(&init_order, 66);
         jl_module_init_order = NULL;
         int i, l = jl_array_len(init_order);
         for (i = 0; i < l; i++) {

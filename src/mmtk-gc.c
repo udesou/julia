@@ -423,9 +423,6 @@ void jl_gc_init(void)
 
     mmtk_julia_copy_stack_check(copy_stacks);
 
-    printf("size of size_t = %d\n", sizeof(size_t));
-    fflush(stdout);
-
     // if only max size is specified initialize MMTk with a fixed size heap
     // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
     // If the two values are the same, we can use either. Otherwise, we need to be careful.

@@ -729,7 +729,7 @@ JL_DLLEXPORT JL_NORETURN void jl_no_exc_handler(jl_value_t *e, jl_task_t *ct)
     assert(!jl_get_safe_restore());                                            \
     jl_ptls_t ptls = ct->ptls;                                                 \
     ptls->io_wait = 0;                                                         \
-    JL_GC_PUSH1(&exception);                                                   \
+    JL_GC_PUSH1(&exception, 16);                                                   \
     jl_gc_unsafe_enter(ptls);                                                  \
     if (exception) {                                                           \
         /* The temporary ptls->bt_data is rooted by special purpose code in the\
@@ -1062,7 +1062,7 @@ CFI_NORETURN
     jl_task_t *ct = jl_get_current_task();
 #else
     jl_task_t *ct = jl_current_task;
-    JL_GC_PUSH1(&ct);
+    JL_GC_PUSH1(&ct, 17);
 #endif
     jl_ptls_t ptls = ct->ptls;
     jl_value_t *res;

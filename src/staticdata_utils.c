@@ -226,7 +226,7 @@ static jl_array_t *queue_external_cis(jl_array_t *list)
     htable_new(&visited, n0);
     arraylist_new(&stack, 0);
     jl_array_t *new_specializations = jl_alloc_vec_any(0);
-    JL_GC_PUSH1(&new_specializations);
+    JL_GC_PUSH1(&new_specializations, 1);
     for (i = n0; i-- > 0; ) {
         jl_code_instance_t *ci = (jl_code_instance_t*)jl_array_ptr_ref(list, i);
         assert(jl_is_code_instance(ci));
@@ -278,7 +278,7 @@ static void jl_collect_new_roots(jl_array_t *roots, jl_array_t *new_specializati
     int nwithkey;
     void *const *table = mset.table;
     jl_array_t *newroots = NULL;
-    JL_GC_PUSH1(&newroots);
+    JL_GC_PUSH1(&newroots, 2);
     for (size_t i = 0; i < mset.size; i += 2) {
         if (table[i+1] != HT_NOTFOUND) {
             jl_method_t *m = (jl_method_t*)table[i];
@@ -322,7 +322,7 @@ static void jl_collect_missing_backedges(jl_methtable_t *mt)
             jl_array_t *edges = (jl_array_t*)jl_eqtable_get(edges_map, (jl_value_t*)caller, NULL);
             if (edges == NULL) {
                 edges = jl_alloc_vec_any(0);
-                JL_GC_PUSH1(&edges);
+                JL_GC_PUSH1(&edges, 3);
                 edges_map = jl_eqtable_put(edges_map, (jl_value_t*)caller, (jl_value_t*)edges, NULL);
                 JL_GC_POP();
             }
@@ -346,7 +346,7 @@ static void collect_backedges(jl_method_instance_t *callee, int internal)
             jl_array_t *edges = (jl_array_t*)jl_eqtable_get(edges_map, (jl_value_t*)caller, NULL);
             if (edges == NULL) {
                 edges = jl_alloc_vec_any(0);
-                JL_GC_PUSH1(&edges);
+                JL_GC_PUSH1(&edges, 4);
                 edges_map = jl_eqtable_put(edges_map, (jl_value_t*)caller, (jl_value_t*)edges, NULL);
                 JL_GC_POP();
             }
@@ -401,7 +401,7 @@ static void jl_collect_extext_methods_from_mod(jl_array_t *s, jl_module_t *m)
 static void jl_record_edges(jl_method_instance_t *caller, arraylist_t *wq, jl_array_t *edges)
 {
     jl_array_t *callees = NULL;
-    JL_GC_PUSH2(&caller, &callees);
+    JL_GC_PUSH2(&caller, &callees, 5);
     callees = (jl_array_t*)jl_eqtable_pop(edges_map, (jl_value_t*)caller, NULL, NULL);
     if (callees != NULL) {
         jl_array_ptr_1d_push(edges, (jl_value_t*)caller);
@@ -473,7 +473,7 @@ static void jl_collect_edges(jl_array_t *edges, jl_array_t *ext_targets, jl_arra
     // and compute the old methods list, ready for serialization
     jl_value_t *matches = NULL;
     jl_array_t *callee_ids = NULL;
-    JL_GC_PUSH2(&matches, &callee_ids);
+    JL_GC_PUSH2(&matches, &callee_ids, 6);
     for (size_t i = 0; i < l; i += 2) {
         jl_array_t *callees = (jl_array_t*)jl_array_ptr_ref(edges, i + 1);
         size_t l = jl_array_len(callees);
@@ -739,7 +739,7 @@ static int64_t write_dependency_list(ios_t *s, jl_array_t* worklist, jl_array_t 
     // Calculate Preferences hash for current package.
     jl_value_t *prefs_hash = NULL;
     jl_value_t *prefs_list = NULL;
-    JL_GC_PUSH1(&prefs_list);
+    JL_GC_PUSH1(&prefs_list, 7);
     if (jl_base_module) {
         // Toplevel module is the module we're currently compiling, use it to get our preferences hash
         jl_value_t * toplevel = (jl_value_t*)jl_get_global(jl_base_module, jl_symbol("__toplevel__"));
@@ -839,7 +839,7 @@ static jl_array_t *jl_verify_edges(jl_array_t *targets, size_t minworld)
     memset(jl_array_data(maxvalids), 0, l * sizeof(size_t));
     jl_value_t *loctag = NULL;
     jl_value_t *matches = NULL;
-    JL_GC_PUSH3(&maxvalids, &matches, &loctag);
+    JL_GC_PUSH3(&maxvalids, &matches, &loctag, 8);
     for (i = 0; i < l; i++) {
         jl_value_t *invokesig = jl_array_ptr_ref(targets, i * 3);
         jl_value_t *callee = jl_array_ptr_ref(targets, i * 3 + 1);
@@ -927,7 +927,7 @@ static jl_array_t *jl_verify_methods(jl_array_t *edges, jl_array_t *maxvalids)
 {
     jl_value_t *loctag = NULL;
     jl_array_t *maxvalids2 = NULL;
-    JL_GC_PUSH2(&loctag, &maxvalids2);
+    JL_GC_PUSH2(&loctag, &maxvalids2, 9);
     size_t i, l = jl_array_len(edges) / 2;
     maxvalids2 = jl_alloc_array_1d(jl_typeof(maxvalids), l);
     size_t *maxvalids2_data = (size_t*)jl_array_data(maxvalids2);
@@ -1025,7 +1025,7 @@ static int jl_verify_graph_edge(size_t *maxvalids2_data, jl_array_t *edges, size
         if (_jl_debug_method_invalidation && max_valid != ~(size_t)0) {
             jl_method_instance_t *mi = (jl_method_instance_t*)jl_array_ptr_ref(edges, childidx * 2);
             jl_value_t *loctag = NULL;
-            JL_GC_PUSH1(&loctag);
+            JL_GC_PUSH1(&loctag, 10);
             jl_array_ptr_1d_push(_jl_debug_method_invalidation, (jl_value_t*)mi);
             loctag = jl_cstr_to_string("verify_methods");
             jl_array_ptr_1d_push(_jl_debug_method_invalidation, loctag);
@@ -1063,7 +1063,7 @@ static void jl_insert_backedges(jl_array_t *edges, jl_array_t *ext_targets, jl_a
 {
     // determine which CodeInstance objects are still valid in our image
     jl_array_t *valids = jl_verify_edges(ext_targets, minworld);
-    JL_GC_PUSH1(&valids);
+    JL_GC_PUSH1(&valids, 11);
     valids = jl_verify_methods(edges, valids); // consumes edges valids, initializes methods valids
     jl_verify_graph(edges, valids); // propagates methods valids for each edge
     size_t i, l;

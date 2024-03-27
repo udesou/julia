@@ -893,46 +893,46 @@ extern void JL_GC_POP() JL_NOTSAFEPOINT;
 #else
 
 #define JL_GC_PUSH1(arg1, locid)                                                                               \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(1), jl_pgcstack, arg1, locid};                                 \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(1), jl_pgcstack, arg1, (void*)locid};                                 \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH2(arg1, arg2, locid)                                                                         \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(2), jl_pgcstack, arg1, arg2, locid};                           \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(2), jl_pgcstack, arg1, arg2, (void*)locid};                           \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH3(arg1, arg2, arg3, locid)                                                                   \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(3), jl_pgcstack, arg1, arg2, arg3, locid};                     \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(3), jl_pgcstack, arg1, arg2, arg3, (void*)locid};                     \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH4(arg1, arg2, arg3, arg4, locid)                                                             \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(4), jl_pgcstack, arg1, arg2, arg3, arg4, locid};               \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(4), jl_pgcstack, arg1, arg2, arg3, arg4, (void*)locid};               \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH5(arg1, arg2, arg3, arg4, arg5, locid)                                                       \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(5), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, locid};         \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(5), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, (void*)locid};         \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH6(arg1, arg2, arg3, arg4, arg5, arg6, locid)                                                 \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(6), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, locid};   \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(6), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, (void*)locid};   \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH7(arg1, arg2, arg3, arg4, arg5, arg6, arg7, locid)                                           \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(7), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, locid}; \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(7), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, (void*)locid}; \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSH8(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, locid)                                     \
-  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(8), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, locid}; \
+  void *__gc_stkf[] = {(void*)JL_GC_ENCODE_PUSH(8), jl_pgcstack, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, (void*)locid}; \
   jl_pgcstack = (jl_gcframe_t*)__gc_stkf;
 
 #define JL_GC_PUSHARGS(rts_var,n, locid)                                                                       \
-  rts_var = ((jl_value_t**)alloca(((n+1)+2)*sizeof(jl_value_t*)))+2;                                      \
-  ((void**)rts_var)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(n);                                              \
-  ((void**)rts_var)[-1] = jl_pgcstack;                                                                  \
-  memset((void*)rts_var, 0, (n+1)*sizeof(jl_value_t*));                                                   \
-  ((void**)rts_var)[n] = locid;                                                                       \
+  rts_var = ((jl_value_t**)alloca(((n+1)+2)*sizeof(jl_value_t*)))+2;                                           \
+  ((void**)rts_var)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(n);                                                     \
+  ((void**)rts_var)[-1] = jl_pgcstack;                                                                         \
+  memset((void*)rts_var, 0, (n+1)*sizeof(jl_value_t*));                                                        \
+  ((void**)rts_var)[n] = (void*)locid;                                                                         \
   jl_pgcstack = (jl_gcframe_t*)&(((void**)rts_var)[-2])
 
-#define JL_GC_POP() (jl_pgcstack = jl_pgcstack->prev)
+#define JL_GC_POP()  (jl_pgcstack = jl_pgcstack->prev)
 
 #endif
 

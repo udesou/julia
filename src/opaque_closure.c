@@ -25,7 +25,7 @@ JL_DLLEXPORT int jl_is_valid_oc_argtype(jl_tupletype_t *argt, jl_method_t *sourc
 static jl_value_t *prepend_type(jl_value_t *t0, jl_tupletype_t *t)
 {
     jl_svec_t *sig_args = NULL;
-    JL_GC_PUSH1(&sig_args);
+    JL_GC_PUSH1(&sig_args, 108);
     size_t nsig = 1 + jl_svec_len(t->parameters);
     sig_args = jl_alloc_svec_uninit(nsig);
     jl_svecset(sig_args, 0, t0);
@@ -56,7 +56,7 @@ static jl_opaque_closure_t *new_opaque_closure(jl_tupletype_t *argt, jl_value_t 
     if (jl_nparams(argt) + 1 - jl_is_va_tuple(argt) < source->nargs - source->isva)
         jl_error("Argument type tuple has too few required arguments for method");
     jl_value_t *sigtype = NULL;
-    JL_GC_PUSH1(&sigtype);
+    JL_GC_PUSH1(&sigtype, 109);
     sigtype = prepend_type(jl_typeof(captures), argt);
 
     jl_value_t *oc_type JL_ALWAYS_LEAFTYPE;
@@ -99,7 +99,7 @@ jl_opaque_closure_t *jl_new_opaque_closure(jl_tupletype_t *argt, jl_value_t *rt_
     jl_value_t *source_, jl_value_t **env, size_t nenv)
 {
     jl_value_t *captures = jl_f_tuple(NULL, env, nenv);
-    JL_GC_PUSH1(&captures);
+    JL_GC_PUSH1(&captures, 110);
     jl_opaque_closure_t *oc = new_opaque_closure(argt, rt_lb, rt_ub, source_, captures);
     JL_GC_POP();
     return oc;
@@ -122,7 +122,7 @@ JL_DLLEXPORT jl_opaque_closure_t *jl_new_opaque_closure_from_code_info(jl_tuplet
         jl_error("CodeInfo must already be inferred");
     jl_value_t *root = NULL, *sigtype = NULL;
     jl_code_instance_t *inst = NULL;
-    JL_GC_PUSH3(&root, &sigtype, &inst);
+    JL_GC_PUSH3(&root, &sigtype, &inst, 111);
     root = jl_box_long(lineno);
     root = jl_new_struct(jl_linenumbernode_type, root, file);
     root = (jl_value_t*)jl_make_opaque_closure_method(mod, jl_nothing, nargs, root, ci, isva);

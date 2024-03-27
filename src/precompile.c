@@ -82,7 +82,7 @@ JL_DLLEXPORT void jl_write_compiler_output(void)
 
     jl_array_t *worklist = jl_module_init_order;
     jl_array_t *udeps = NULL;
-    JL_GC_PUSH2(&worklist, &udeps);
+    JL_GC_PUSH2(&worklist, &udeps, 231);
     jl_module_init_order = jl_alloc_vec_any(0);
     int i, l = jl_array_len(worklist);
     for (i = 0; i < l; i++) {
@@ -96,7 +96,7 @@ JL_DLLEXPORT void jl_write_compiler_output(void)
                 // TODO: this would be better handled if moved entirely to jl_precompile
                 // since it's a slightly duplication of effort
                 jl_value_t *tt = jl_is_type(f) ? (jl_value_t*)jl_wrap_Type(f) : jl_typeof(f);
-                JL_GC_PUSH1(&tt);
+                JL_GC_PUSH1(&tt, 232);
                 tt = (jl_value_t*)jl_apply_tuple_type_v(&tt, 1);
                 jl_compile_hint((jl_tupletype_t*)tt);
                 JL_GC_POP();

@@ -37,7 +37,7 @@ JL_DLLEXPORT jl_module_t *jl_new_module_(jl_sym_t *name, uint8_t default_names)
     JL_MUTEX_INIT(&m->lock);
     htable_new(&m->bindings, 0);
     arraylist_new(&m->usings, 0);
-    JL_GC_PUSH1(&m);
+    JL_GC_PUSH1(&m, 186);
     if (jl_core_module && default_names) {
         jl_module_using(m, jl_core_module);
     }
@@ -64,7 +64,7 @@ JL_DLLEXPORT jl_value_t *jl_f_new_module(jl_sym_t *name, uint8_t std_imports, ui
 {
     // TODO: should we prohibit this during incremental compilation?
     jl_module_t *m = jl_new_module_(name, default_names);
-    JL_GC_PUSH1(&m);
+    JL_GC_PUSH1(&m, 187);
     m->parent = jl_main_module; // TODO: this is a lie
     jl_gc_wb(m, m->parent);
     if (std_imports)
@@ -856,7 +856,7 @@ JL_DLLEXPORT void jl_checked_assignment(jl_binding_t *b, jl_value_t *rhs)
     jl_value_t *old_ty = NULL;
     if (!jl_atomic_cmpswap_relaxed(&b->ty, &old_ty, (jl_value_t*)jl_any_type)) {
         if (old_ty != (jl_value_t*)jl_any_type && jl_typeof(rhs) != old_ty) {
-            JL_GC_PUSH1(&rhs);
+            JL_GC_PUSH1(&rhs, 188);
             if (!jl_isa(rhs, old_ty))
                 jl_errorf("cannot assign an incompatible value to the global %s.",
                           jl_symbol_name(b->name));
@@ -896,7 +896,7 @@ JL_DLLEXPORT void jl_declare_constant(jl_binding_t *b)
 JL_DLLEXPORT jl_value_t *jl_module_usings(jl_module_t *m)
 {
     jl_array_t *a = jl_alloc_array_1d(jl_array_any_type, 0);
-    JL_GC_PUSH1(&a);
+    JL_GC_PUSH1(&a, 189);
     JL_LOCK(&m->lock);
     for(int i=(int)m->usings.len-1; i >= 0; --i) {
         jl_array_grow_end(a, 1);
@@ -911,7 +911,7 @@ JL_DLLEXPORT jl_value_t *jl_module_usings(jl_module_t *m)
 JL_DLLEXPORT jl_value_t *jl_module_names(jl_module_t *m, int all, int imported)
 {
     jl_array_t *a = jl_alloc_array_1d(jl_array_symbol_type, 0);
-    JL_GC_PUSH1(&a);
+    JL_GC_PUSH1(&a, 190);
     size_t i;
     JL_LOCK(&m->lock);
     void **table = m->bindings.table;

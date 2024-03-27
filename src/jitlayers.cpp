@@ -396,7 +396,7 @@ void jl_extern_c_impl(jl_value_t *declrt, jl_tupletype_t *sigt)
     jl_method_t *meth = (jl_method_t*)jl_methtable_lookup(ft->name->mt, (jl_value_t*)sigt, jl_atomic_load_acquire(&jl_world_counter));
     if (!jl_is_method(meth))
         jl_error("@ccallable: could not find requested method");
-    JL_GC_PUSH1(&meth);
+    JL_GC_PUSH1(&meth, 257);
     meth->ccallable = jl_svec2(declrt, (jl_value_t*)sigt);
     jl_gc_wb(meth, meth->ccallable);
     JL_GC_POP();
@@ -420,7 +420,7 @@ jl_code_instance_t *jl_generate_fptr_impl(jl_method_instance_t *mi JL_PROPAGATES
         compiler_start_time = jl_hrtime();
     // if we don't have any decls already, try to generate it now
     jl_code_info_t *src = NULL;
-    JL_GC_PUSH1(&src);
+    JL_GC_PUSH1(&src, 258);
     JL_LOCK(&jl_codegen_lock); // also disables finalizers, to prevent any unexpected recursion
     jl_value_t *ci = jl_rettype_inferred(mi, world, world);
     jl_code_instance_t *codeinst = (ci == jl_nothing ? NULL : (jl_code_instance_t*)ci);
@@ -491,7 +491,7 @@ void jl_generate_fptr_for_unspecialized_impl(jl_code_instance_t *unspec)
     JL_LOCK(&jl_codegen_lock);
     if (jl_atomic_load_relaxed(&unspec->invoke) == NULL) {
         jl_code_info_t *src = NULL;
-        JL_GC_PUSH1(&src);
+        JL_GC_PUSH1(&src, 259);
         jl_method_t *def = unspec->def->def.method;
         if (jl_is_method(def)) {
             src = (jl_code_info_t*)def->source;
@@ -549,7 +549,7 @@ jl_value_t *jl_dump_method_asm_impl(jl_method_instance_t *mi, size_t world,
             specfptr = (uintptr_t)jl_atomic_load_relaxed(&codeinst->specptr.fptr);
             if (specfptr == 0) {
                 jl_code_info_t *src = jl_type_infer(mi, world, 0);
-                JL_GC_PUSH1(&src);
+                JL_GC_PUSH1(&src, 260);
                 jl_method_t *def = mi->def.method;
                 if (jl_is_method(def)) {
                     if (!src) {

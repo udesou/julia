@@ -325,7 +325,7 @@ int jl_typemap_visitor(jl_typemap_t *cache, jl_typemap_visitor_fptr fptr, void *
     if (jl_typeof(cache) == (jl_value_t*)jl_typemap_level_type) {
         jl_typemap_level_t *node = (jl_typemap_level_t*)cache;
         jl_array_t *a;
-        JL_GC_PUSH1(&a);
+        JL_GC_PUSH1(&a, 18);
         a = jl_atomic_load_relaxed(&node->targ);
         if (a != (jl_array_t*)jl_an_empty_vec_any)
             if (!jl_typemap_array_visitor(a, fptr, closure))
@@ -390,7 +390,7 @@ static int tname_intersection(jl_datatype_t *a, jl_typename_t *bname, unsigned h
 static int jl_typemap_intersection_array_visitor(jl_array_t *a, jl_value_t *ty, int tparam,
                                                  int offs, struct typemap_intersection_env *closure)
 {
-    JL_GC_PUSH1(&a);
+    JL_GC_PUSH1(&a, 19);
     size_t i, l = jl_array_len(a);
     _Atomic(jl_typemap_t*) *data = (_Atomic(jl_typemap_t*)*)jl_array_data(a);
     unsigned height = tparam & 2 ? jl_supertype_height((jl_datatype_t*)ty) : 0;
@@ -844,7 +844,7 @@ jl_typemap_entry_t *jl_typemap_assoc_by_type(
                         // couldn't figure out unique `a0` initial point, so scan all for matches
                         size_t i, l = jl_array_len(tname);
                         _Atomic(jl_typemap_t*) *data = (_Atomic(jl_typemap_t*)*)jl_array_ptr_data(tname);
-                        JL_GC_PUSH1(&tname);
+                        JL_GC_PUSH1(&tname, 20);
                         for (i = 1; i < l; i += 2) {
                             jl_typemap_t *ml = jl_atomic_load_relaxed(&data[i]);
                             if (ml == NULL || ml == jl_nothing)
@@ -883,7 +883,7 @@ jl_typemap_entry_t *jl_typemap_assoc_by_type(
                     // doing subtype, but couldn't figure out unique `ty`, so scan all for supertypes
                     size_t i, l = jl_array_len(name1);
                     _Atomic(jl_typemap_t*) *data = (_Atomic(jl_typemap_t*)*)jl_array_ptr_data(name1);
-                    JL_GC_PUSH1(&name1);
+                    JL_GC_PUSH1(&name1, 21);
                     for (i = 1; i < l; i += 2) {
                         jl_typemap_t *ml = jl_atomic_load_relaxed(&data[i]);
                         if (ml == NULL || ml == jl_nothing)
@@ -1033,7 +1033,7 @@ jl_typemap_entry_t *jl_typemap_level_assoc_exact(jl_typemap_level_t *cache, jl_v
                 // couldn't figure out unique `name` initial point, so must scan all for matches
                 size_t i, l = jl_array_len(tname);
                 _Atomic(jl_typemap_t*) *data = (_Atomic(jl_typemap_t*)*)jl_array_ptr_data(tname);
-                JL_GC_PUSH1(&tname);
+                JL_GC_PUSH1(&tname, 22);
                 for (i = 1; i < l; i += 2) {
                     jl_typemap_t *ml_or_cache = jl_atomic_load_relaxed(&data[i]);
                     if (ml_or_cache == NULL || ml_or_cache == jl_nothing)
@@ -1107,7 +1107,7 @@ static jl_typemap_level_t *jl_method_convert_list_to_cache(
 {
     jl_typemap_level_t *cache = jl_new_typemap_level();
     jl_typemap_entry_t *next = NULL;
-    JL_GC_PUSH3(&cache, &next, &ml);
+    JL_GC_PUSH3(&cache, &next, &ml, 23);
     while (ml != (void*)jl_nothing) {
         next = jl_atomic_load_relaxed(&ml->next);
         jl_atomic_store_relaxed(&ml->next, (jl_typemap_entry_t*)jl_nothing);

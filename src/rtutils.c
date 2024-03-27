@@ -37,7 +37,7 @@ JL_DLLEXPORT void JL_NORETURN jl_error(const char *str)
         jl_exit(1);
     }
     jl_value_t *msg = jl_pchar_to_string((char*)str, strlen(str));
-    JL_GC_PUSH1(&msg);
+    JL_GC_PUSH1(&msg, 69);
     jl_throw(jl_new_struct(jl_errorexception_type, msg));
 }
 
@@ -62,7 +62,7 @@ jl_value_t *jl_vexceptionf(jl_datatype_t *exception_type,
         msg = jl_pchar_to_string(str, strlen(str));
         free(str);
     }
-    JL_GC_PUSH1(&msg);
+    JL_GC_PUSH1(&msg, 70);
     jl_value_t *e = jl_new_struct(exception_type, msg);
     JL_GC_POP();
     return e;
@@ -113,7 +113,7 @@ JL_DLLEXPORT void JL_NORETURN jl_type_error_rt(const char *fname, const char *co
                                                jl_value_t *got JL_MAYBE_UNROOTED)
 {
     jl_value_t *ctxt=NULL;
-    JL_GC_PUSH3(&ctxt, &expected, &got);
+    JL_GC_PUSH3(&ctxt, &expected, &got, 71);
     ctxt = jl_pchar_to_string((char*)context, strlen(context));
     jl_value_t *ex = jl_new_struct(jl_typeerror_type, jl_symbol(fname), ctxt, expected, got);
     jl_throw(ex);
@@ -140,14 +140,14 @@ JL_DLLEXPORT void JL_NORETURN jl_has_no_field_error(jl_sym_t *type_name, jl_sym_
 JL_DLLEXPORT void JL_NORETURN jl_atomic_error(char *str) // == jl_exceptionf(jl_atomicerror_type, "%s", str)
 {
     jl_value_t *msg = jl_pchar_to_string((char*)str, strlen(str));
-    JL_GC_PUSH1(&msg);
+    JL_GC_PUSH1(&msg, 72);
     jl_throw(jl_new_struct(jl_atomicerror_type, msg));
 }
 
 
 JL_DLLEXPORT void JL_NORETURN jl_bounds_error(jl_value_t *v, jl_value_t *t)
 {
-    JL_GC_PUSH2(&v, &t); // root arguments so the caller doesn't need to
+    JL_GC_PUSH2(&v, &t, 73); // root arguments so the caller doesn't need to
     jl_throw(jl_new_struct((jl_datatype_t*)jl_boundserror_type, v, t));
 }
 
@@ -155,7 +155,7 @@ JL_DLLEXPORT void JL_NORETURN jl_bounds_error_v(jl_value_t *v, jl_value_t **idxs
 {
     jl_value_t *t = NULL;
     // items in idxs are assumed to already be rooted
-    JL_GC_PUSH2(&v, &t); // root v so the caller doesn't need to
+    JL_GC_PUSH2(&v, &t, 74); // root v so the caller doesn't need to
     t = jl_f_tuple(NULL, idxs, nidxs);
     jl_throw(jl_new_struct((jl_datatype_t*)jl_boundserror_type, v, t));
 }
@@ -171,7 +171,7 @@ JL_DLLEXPORT void JL_NORETURN jl_bounds_error_unboxed_int(void *data, jl_value_t
     jl_value_t *t = NULL, *v = NULL;
     // data is expected to be gc-safe (either gc-rooted, or alloca)
     // vt is expected to be gc-rooted (in a linfo-root probably)
-    JL_GC_PUSH2(&v, &t);
+    JL_GC_PUSH2(&v, &t, 75);
     v = jl_new_bits(vt, data);
     t = jl_box_long(i);
     jl_throw(jl_new_struct((jl_datatype_t*)jl_boundserror_type, v, t));
@@ -180,7 +180,7 @@ JL_DLLEXPORT void JL_NORETURN jl_bounds_error_unboxed_int(void *data, jl_value_t
 JL_DLLEXPORT void JL_NORETURN jl_bounds_error_int(jl_value_t *v JL_MAYBE_UNROOTED, size_t i)
 {
     jl_value_t *t = NULL;
-    JL_GC_PUSH2(&v, &t); // root arguments so the caller doesn't need to
+    JL_GC_PUSH2(&v, &t, 76); // root arguments so the caller doesn't need to
     t = jl_box_long(i);
     jl_throw(jl_new_struct((jl_datatype_t*)jl_boundserror_type, v, t));
 }
@@ -190,7 +190,7 @@ JL_DLLEXPORT void JL_NORETURN jl_bounds_error_ints(jl_value_t *v JL_MAYBE_UNROOT
 {
     size_t i;
     jl_value_t *t = NULL;
-    JL_GC_PUSH2(&v, &t); // root arguments so the caller doesn't need to
+    JL_GC_PUSH2(&v, &t, 77); // root arguments so the caller doesn't need to
     t = (jl_value_t*)jl_alloc_svec(nidxs);
     for (i = 0; i < nidxs; i++) {
         jl_svecset(t, i, jl_box_long(idxs[i]));
@@ -1404,7 +1404,7 @@ void jl_log(int level, jl_value_t *module, jl_value_t *group, jl_value_t *id,
     }
     jl_value_t **args;
     const int nargs = 9;
-    JL_GC_PUSHARGS(args, nargs);
+    JL_GC_PUSHARGS(args, nargs, 78);
     args[0] = logmsg_func;
     args[1] = jl_box_long(level);
     args[2] = msg;

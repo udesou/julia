@@ -87,7 +87,7 @@ ssize_t jl_smallintset_lookup(jl_array_t *cache, smallintset_eq eq, const void *
     size_t sz = jl_array_len(cache);
     if (sz == 0)
         return -1;
-    JL_GC_PUSH1(&cache);
+    JL_GC_PUSH1(&cache, 67);
     size_t maxprobe = max_probe(sz);
     size_t index = h2index(hv, sz);
     size_t orig = index;
@@ -171,7 +171,7 @@ static void smallintset_rehash(_Atomic(jl_array_t*) *pcache, jl_value_t *parent,
     }
     while (1) {
         jl_array_t *newa = jl_alloc_int_1d(np, newsz);
-        JL_GC_PUSH1(&newa);
+        JL_GC_PUSH1(&newa, 68);
         for (i = 0; i < sz; i += 1) {
             size_t val1 = jl_intref(a, i);
             if (val1 != 0) {

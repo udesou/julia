@@ -5,7 +5,7 @@ static void _compile_all_tvar_union(jl_value_t *methsig)
     int tvarslen = jl_subtype_env_size(methsig);
     jl_value_t *sigbody = methsig;
     jl_value_t **roots;
-    JL_GC_PUSHARGS(roots, 1 + 2 * tvarslen);
+    JL_GC_PUSHARGS(roots, 1 + 2 * tvarslen, 179);
     jl_value_t **env = roots + 1;
     int *idx = (int*)alloca(sizeof(int) * tvarslen);
     int i;
@@ -93,7 +93,7 @@ static void _compile_all_union(jl_value_t *sig)
         idx[i] = 0;
     }
 
-    JL_GC_PUSH2(&p, &methsig);
+    JL_GC_PUSH2(&p, &methsig, 180);
     int idx_ctr = 0, incr = 0;
     while (!incr) {
         p = jl_alloc_svec_uninit(l);
@@ -150,7 +150,7 @@ static int compile_all_collect_(jl_methtable_t *mt, void *env)
 static void jl_compile_all_defs(jl_array_t *mis)
 {
     jl_array_t *allmeths = jl_alloc_vec_any(0);
-    JL_GC_PUSH1(&allmeths);
+    JL_GC_PUSH1(&allmeths, 181);
 
     jl_foreach_reachable_mtable(compile_all_collect_, allmeths);
 
@@ -236,7 +236,7 @@ static void *jl_precompile_(jl_array_t *m, int external_linkage)
 {
     jl_array_t *m2 = NULL;
     jl_method_instance_t *mi = NULL;
-    JL_GC_PUSH2(&m2, &mi);
+    JL_GC_PUSH2(&m2, &mi, 182);
     m2 = jl_alloc_vec_any(0);
     for (size_t i = 0; i < jl_array_len(m); i++) {
         jl_value_t *item = jl_array_ptr_ref(m, i);
@@ -265,7 +265,7 @@ static void *jl_precompile(int all)
 {
     // array of MethodInstances and ccallable aliases to include in the output
     jl_array_t *m = jl_alloc_vec_any(0);
-    JL_GC_PUSH1(&m);
+    JL_GC_PUSH1(&m, 183);
     if (all)
         jl_compile_all_defs(m);
     jl_foreach_reachable_mtable(precompile_enq_all_specializations_, m);
@@ -281,7 +281,7 @@ static void *jl_precompile_worklist(jl_array_t *worklist, jl_array_t *extext_met
     // this "found" array will contain function
     // type signatures that were inferred but haven't been compiled
     jl_array_t *m = jl_alloc_vec_any(0);
-    JL_GC_PUSH1(&m);
+    JL_GC_PUSH1(&m, 184);
     size_t i, n = jl_array_len(worklist);
     for (i = 0; i < n; i++) {
         jl_module_t *mod = (jl_module_t*)jl_array_ptr_ref(worklist, i);

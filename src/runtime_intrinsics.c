@@ -385,7 +385,7 @@ JL_DLLEXPORT jl_value_t *jl_atomic_pointermodify(jl_value_t *p, jl_value_t *f, j
         expected = jl_atomic_new_bits(ety, pp);
     }
     jl_value_t **args;
-    JL_GC_PUSHARGS(args, 2);
+    JL_GC_PUSHARGS(args, 2, 128);
     args[0] = expected;
     while (1) {
         args[1] = x;
@@ -436,7 +436,7 @@ JL_DLLEXPORT jl_value_t *jl_atomic_pointerreplace(jl_value_t *p, jl_value_t *exp
     JL_GC_PROMISE_ROOTED(rettyp); // (JL_ALWAYS_LEAFTYPE)
     if (ety == (jl_value_t*)jl_any_type) {
         jl_value_t *result;
-        JL_GC_PUSH1(&result);
+        JL_GC_PUSH1(&result, 129);
         result = expected;
         int success;
         while (1) {
@@ -470,7 +470,7 @@ JL_DLLEXPORT jl_value_t *jl_atomic_fence(jl_value_t *order_sym)
 JL_DLLEXPORT jl_value_t *jl_cglobal(jl_value_t *v, jl_value_t *ty)
 {
     JL_TYPECHK(cglobal, type, ty);
-    JL_GC_PUSH1(&v);
+    JL_GC_PUSH1(&v, 130);
     jl_value_t *rt =
         ty == (jl_value_t*)jl_nothing_type ? (jl_value_t*)jl_voidpointer_type : // a common case
             (jl_value_t*)jl_apply_type1((jl_value_t*)jl_pointer_type, ty);
