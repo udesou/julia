@@ -2389,6 +2389,8 @@ extern JL_DLLEXPORT int jl_default_debug_info_kind;
 extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
 extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
 extern void* mmtk_alloc(void* mutator, size_t size, size_t align, size_t offset, int allocator);
+extern void mmtk_post_alloc(void* mutator, void* refer, size_t bytes, int allocator);
+
 
 extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
 
@@ -2478,7 +2480,8 @@ STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t si
 }
 
 STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // We do not need post alloc for immix objects in immix/stickyimmix
+    // calling post alloc to clear pin bits
+    mmtk_post_alloc(mutator, obj, size, 0);
 }
 
 STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {

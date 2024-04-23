@@ -505,6 +505,7 @@ STATIC_INLINE jl_value_t *jl_gc_alloc_(jl_ptls_t ptls, size_t sz, void *ty)
     const size_t allocsz = sz + sizeof(jl_taggedvalue_t);
     if (sz <= GC_MAX_SZCLASS) {
         v = jl_mmtk_gc_alloc_default(ptls, allocsz, 16, ty);
+        mmtk_pin_object(v);
     }
     else {
         if (allocsz < sz) // overflow in adding offs, size was "negative"

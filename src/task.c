@@ -1059,13 +1059,14 @@ CFI_NORETURN
 #endif
     // this runs the first time we switch to a task
 #ifdef __clang_gcanalyzer__
-    jl_task_t *ct = jl_get_current_task();
+    jl_value_t *ct = jl_get_current_task();
 #else
     jl_task_t *ct = jl_current_task;
-    JL_GC_PUSH1(&ct, 17);
-#endif
-    jl_ptls_t ptls = ct->ptls;
     jl_value_t *res;
+    jl_ptls_t ptls;
+    JL_GC_PUSH3_NO_TPIN(&ct, &res, &ptls);
+#endif
+    ptls = ct->ptls;
     assert(ptls->finalizers_inhibited == 0);
 
 #ifdef MIGRATE_TASKS
