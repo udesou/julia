@@ -55,22 +55,22 @@ namespace {
 
 static void removeGCPreserve(CallInst *call, Instruction *val)
 {
-    ++RemovedGCPreserve;
-    auto replace = Constant::getNullValue(val->getType());
-    call->replaceUsesOfWith(val, replace);
-    call->setAttributes(AttributeList());
-    for (auto &arg: call->args()) {
-        if (!isa<Constant>(arg.get())) {
-            return;
-        }
-    }
-    while (!call->use_empty()) {
-        auto end = cast<Instruction>(*call->user_begin());
-        // gc_preserve_end returns void.
-        assert(end->use_empty());
-        end->eraseFromParent();
-    }
-    call->eraseFromParent();
+    // ++RemovedGCPreserve;
+    // auto replace = Constant::getNullValue(val->getType());
+    // call->replaceUsesOfWith(val, replace);
+    // call->setAttributes(AttributeList());
+    // for (auto &arg: call->args()) {
+    //     if (!isa<Constant>(arg.get())) {
+    //         return;
+    //     }
+    // }
+    // while (!call->use_empty()) {
+    //     auto end = cast<Instruction>(*call->user_begin());
+    //     // gc_preserve_end returns void.
+    //     assert(end->use_empty());
+    //     end->eraseFromParent();
+    // }
+    // call->eraseFromParent();
 }
 
 /**
@@ -653,15 +653,15 @@ void Optimizer::moveToStack(CallInst *orig_inst, size_t sz, bool has_ref)
                 return;
             }
             // Also remove the preserve intrinsics so that it can be better optimized.
-            if (pass.gc_preserve_begin_func == callee) {
-                if (has_ref) {
-                    call->replaceUsesOfWith(orig_i, buff);
-                }
-                else {
-                    removeGCPreserve(call, orig_i);
-                }
-                return;
-            }
+            // if (pass.gc_preserve_begin_func == callee) {
+            //     if (has_ref) {
+            //         call->replaceUsesOfWith(orig_i, buff);
+            //     }
+            //     else {
+            //         removeGCPreserve(call, orig_i);
+            //     }
+            //     return;
+            // }
             if (pass.write_barrier_func == callee ||
                 pass.write_barrier_binding_func == callee) {
                 ++RemovedWriteBarriers;
@@ -761,10 +761,10 @@ void Optimizer::removeAlloc(CallInst *orig_inst)
         }
         else if (auto call = dyn_cast<CallInst>(user)) {
             auto callee = call->getCalledOperand();
-            if (pass.gc_preserve_begin_func == callee) {
-                removeGCPreserve(call, orig_i);
-                return;
-            }
+            // if (pass.gc_preserve_begin_func == callee) {
+            //     removeGCPreserve(call, orig_i);
+            //     return;
+            // }
             if (pass.typeof_func == callee) {
                 ++RemovedTypeofs;
                 call->replaceAllUsesWith(tag);

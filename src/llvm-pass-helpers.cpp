@@ -334,6 +334,8 @@ namespace jl_well_known {
     static const char *GC_QUEUE_BINDING_NAME = XSTR(jl_gc_queue_binding);
     static const char *GC_ALLOC_TYPED_NAME = XSTR(jl_gc_alloc_typed);
 #ifdef MMTK_GC
+    static const char *GC_PRESERVE_BEGIN_HOOK_NAME = XSTR(jl_gc_preserve_begin_hook);
+    static const char *GC_PRESERVE_END_HOOK_NAME = XSTR(jl_gc_preserve_end_hook);
     static const char *GC_WB_1_NAME = XSTR(jl_gc_wb1_noinline);
     static const char *GC_WB_2_NAME = XSTR(jl_gc_wb2_noinline);
     static const char *GC_WB_BINDING_NAME = XSTR(jl_gc_wb_binding_noinline);
@@ -424,6 +426,34 @@ namespace jl_well_known {
         });
 
 #ifdef MMTK_GC
+    const WellKnownFunctionDescription GCPreserveBeginHook(
+        GC_PRESERVE_BEGIN_HOOK_NAME,
+        [](const JuliaPassContext &context) {
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    { T_size_t(context) },
+                    true),
+                Function::ExternalLinkage,
+                GC_PRESERVE_BEGIN_HOOK_NAME);
+
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+        });
+
+    const WellKnownFunctionDescription GCPreserveEndHook(
+        GC_PRESERVE_END_HOOK_NAME,
+        [](const JuliaPassContext &context) {
+            auto func = Function::Create(
+                FunctionType::get(
+                    Type::getVoidTy(context.getLLVMContext()),
+                    {  },
+                    false),
+                Function::ExternalLinkage,
+                GC_PRESERVE_END_HOOK_NAME);
+            func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+            return func;
+        });
     const WellKnownFunctionDescription GCWriteBarrier1(
         GC_WB_1_NAME,
         [](const JuliaPassContext &context) {

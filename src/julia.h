@@ -2082,6 +2082,10 @@ typedef struct _jl_task_t {
     int8_t threadpoolid;
     // saved gc stack top for context switches
     jl_gcframe_t *gcstack;
+#ifdef MMTK_GC
+    // GC stack of objects that need to be transitively pinned
+    jl_gcframe_t *tpin_gcstack;
+#endif
     size_t world_age;
     // quick lookup for current ptls
     jl_ptls_t ptls; // == jl_all_tls_states[tid]

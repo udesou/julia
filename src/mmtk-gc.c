@@ -391,7 +391,7 @@ void jl_gc_init(void)
         double min_size = strtod(min_size_gb, &p);
         min_heap_size = (long) 1024 * 1024 * 1024 * min_size;
     } else {
-        min_heap_size = (long) 1024 * 1024 * 1024 * 1;
+        min_heap_size = default_collect_interval;
     }
 
     // default max heap currently set as 30 Gb
@@ -404,7 +404,7 @@ void jl_gc_init(void)
         double max_size = strtod(max_size_gb, &p);
         max_heap_size = (long) 1024 * 1024 * 1024 * max_size;
     } else {
-        max_heap_size = (long) uv_get_free_memory() * 60 / 100;
+        max_heap_size = (long) uv_get_free_memory() * 70 / 100;
     }
 
     // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
@@ -567,6 +567,45 @@ JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array
 {
     jl_ptls_t ptls = jl_current_task->ptls;
     mmtk_memory_region_copy(&ptls->mmtk_mutator, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
+}
+
+#define jl_p_tpin_gcstack (jl_current_task->tpin_gcstack)
+
+#define JL_GC_PUSHARGS_TPIN_ROOT_OBJS(rts_var,n)                                                        \
+  rts_var = ((jl_value_t**)malloc(((n)+2)*sizeof(jl_value_t*)))+2;                                      \
+  ((void**)rts_var)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(n);                                              \
+  ((void**)rts_var)[-1] = jl_p_tpin_gcstack;                                                            \
+  memset((void*)rts_var, 0, (n)*sizeof(jl_value_t*));                                                   \
+  jl_p_tpin_gcstack = (jl_gcframe_t*)&(((void**)rts_var)[-2]);                                          \
+
+#define JL_GC_POP_TPIN_ROOT_OBJS()                                                                      \
+    jl_gcframe_t *curr = jl_p_tpin_gcstack;                                                             \
+    if(curr) {                                                                                          \
+        (jl_p_tpin_gcstack = jl_p_tpin_gcstack->prev);                                                  \
+        free(curr);                                                                                     \
+    }
+
+// Add each argument as a tpin root object.
+// However, we cannot use JL_GC_PUSH and JL_GC_POP since the slots should live
+// beyond this function. Instead, we maintain a tpin stack by mallocing/freeing
+// the frames for each of the preserve regions we encounter
+JL_DLLEXPORT void jl_gc_preserve_begin_hook(int n, ...) JL_NOTSAFEPOINT
+{
+    jl_value_t** frame;
+    JL_GC_PUSHARGS_TPIN_ROOT_OBJS(frame, n);
+    if (n == 0) return;
+
+    va_list args;
+    va_start(args, n);
+    for (int i = 0; i < n; i++) {
+        frame[i] = va_arg(args, jl_value_t *);
+    }
+    va_end(args);
+}
+
+JL_DLLEXPORT void jl_gc_preserve_end_hook(void) JL_NOTSAFEPOINT
+{
+    JL_GC_POP_TPIN_ROOT_OBJS();
 }
 
 // No inline write barrier -- only used for debugging
