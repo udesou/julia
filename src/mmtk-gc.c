@@ -425,11 +425,8 @@ void jl_gc_init(void)
     // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
     // If the two values are the same, we can use either. Otherwise, we need to be careful.
     uintptr_t gcthreads = jl_options.ngcthreads;
-    if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        mmtk_gc_init(0, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
-    } else {
-        mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
-    }
+    // use Julia's GC heap resizing/gc trigger heuristics as default
+    mmtk_gc_init(0, 0, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
 }
 
 // allocation wrappers that track allocation and let collection run
