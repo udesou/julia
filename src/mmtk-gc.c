@@ -382,7 +382,7 @@ void jl_gc_init(void)
     char* max_size_gb = getenv("MMTK_MAX_HSIZE_G");
 
     // default min heap currently set as 0
-    // and default max heap currently set as 0 
+    // and default max heap currently set as 0
     // which means that by default mmtk will use stock heuristics
     if (min_size_def != NULL) {
         char *p;
@@ -427,7 +427,7 @@ void jl_gc_init(void)
     // If the two values are the same, we can use either. Otherwise, we need to be careful.
     uintptr_t gcthreads = jl_options.ngcthreads;
     // if only max_heap_size is set (max_size_def != 0), mmtk will run with a fixed heap size
-    // if both min_heap_size and max_heap_size are set (their values different than 0), mmtk will use membalancer 
+    // if both min_heap_size and max_heap_size are set (their values different than 0), mmtk will use membalancer
     // and resize the heap within those values. If none of these variables are set, then mmtk will use stock heuristics
     // note that this will be overwritten in Rust by the env variable MMTK_GC_TRIGGER
     mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
