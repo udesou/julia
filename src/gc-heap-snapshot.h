@@ -28,7 +28,10 @@ void _gc_heap_snapshot_record_internal_array_edge(jl_value_t *from, jl_value_t *
 // Used for objects manually allocated in C (outside julia GC), to still tell the heap snapshot about the
 // size of the object, even though we're never going to mark that object.
 void _gc_heap_snapshot_record_hidden_edge(jl_value_t *from, void* to, size_t bytes, uint16_t alloc_type) JL_NOTSAFEPOINT;
-
+// Used for objects that are reachable from the GC roots
+void _gc_heap_snapshot_record_gc_roots(jl_value_t *root, char *name) JL_NOTSAFEPOINT;
+// Used for objects that are reachable from the finalizer list
+void _gc_heap_snapshot_record_finlist(jl_value_t *finlist, size_t index) JL_NOTSAFEPOINT;
 
 extern int gc_heap_snapshot_enabled;
 extern int prev_sweep_full;
@@ -58,6 +61,12 @@ static inline void gc_heap_snapshot_record_root(jl_value_t *root, char *name) JL
 {
     if (__unlikely(gc_heap_snapshot_enabled && prev_sweep_full)) {
         _gc_heap_snapshot_record_root(root, name);
+    }
+}
+static inline void gc_heap_snapshot_record_array_edge_index(jl_value_t *from, jl_value_t *to, size_t index) JL_NOTSAFEPOINT
+{
+    if (__unlikely(gc_heap_snapshot_enabled && prev_sweep_full && from != NULL && to != NULL)) {
+        _gc_heap_snapshot_record_array_edge(from, to, index);
     }
 }
 static inline void gc_heap_snapshot_record_array_edge(jl_value_t *from, jl_value_t **to) JL_NOTSAFEPOINT
@@ -94,10 +103,25 @@ static inline void gc_heap_snapshot_record_hidden_edge(jl_value_t *from, void* t
     }
 }
 
+static inline void gc_heap_snapshot_record_gc_roots(jl_value_t *root, char *name) JL_NOTSAFEPOINT
+{
+    if (__unlikely(gc_heap_snapshot_enabled && prev_sweep_full && root != NULL)) {
+        _gc_heap_snapshot_record_gc_roots(root, name);
+    }
+}
+
+static inline void gc_heap_snapshot_record_finlist(jl_value_t *finlist, size_t index) JL_NOTSAFEPOINT
+{
+    if (__unlikely(gc_heap_snapshot_enabled && prev_sweep_full && finlist != NULL)) {
+        _gc_heap_snapshot_record_finlist(finlist, index);
+    }
+}
+
 // ---------------------------------------------------------------------
 // Functions to call from Julia to take heap snapshot
 // ---------------------------------------------------------------------
-JL_DLLEXPORT void jl_gc_take_heap_snapshot(ios_t *stream, char all_one);
+JL_DLLEXPORT void jl_gc_take_heap_snapshot(ios_t *nodes, ios_t *edges,
+    ios_t *strings, ios_t *json, char all_one);
 
 
 #ifdef __cplusplus
