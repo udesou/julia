@@ -2314,7 +2314,6 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 /* Replace with a call to the hook functions */
                 // Initialize an IR builder.
                 IRBuilder<> builder(CI);
-                CallInst *newI;
 
                 builder.SetCurrentDebugLocation(CI->getDebugLoc());
                 size_t nargs = 0;
@@ -2348,19 +2347,13 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 args.insert(args.begin(), ConstantInt::get(T_size, nargs));
 
                 ArrayRef<Value*> args_llvm = ArrayRef<Value*>(args);
-
-                newI = builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveBeginHook), args_llvm );
-
-                CI->replaceAllUsesWith(newI);
+                builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveBeginHook), args_llvm );
             } else if (callee && (callee == gc_preserve_end_func)) {
                 /* Replace with a call to the hook functions */
                 // Initialize an IR builder.
                 IRBuilder<> builder(CI);
-                CallInst *newI;
                 builder.SetCurrentDebugLocation(CI->getDebugLoc());
-                newI = builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveEndHook), {});
-
-                CI->replaceAllUsesWith(newI);
+                builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveEndHook), {});
             } else if (pointer_from_objref_func != nullptr && callee == pointer_from_objref_func) {
                 auto *obj = CI->getOperand(0);
                 auto *ASCI = new AddrSpaceCastInst(obj, JuliaType::get_pjlvalue_ty(obj->getContext()), "", CI);
