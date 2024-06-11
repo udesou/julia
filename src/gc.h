@@ -70,6 +70,13 @@ static inline void objprofile_reset(void)
 
 #define malloc_cache_align(sz) jl_malloc_aligned(sz, JL_CACHE_BYTE_ALIGNMENT)
 #define realloc_cache_align(p, sz, oldsz) jl_realloc_aligned(p, sz, oldsz, JL_CACHE_BYTE_ALIGNMENT)
+#ifdef GC_SMALL_PAGE
+#define GC_PAGE_LG2 12 // log2(size of a page)
+#else
+#define GC_PAGE_LG2 14 // log2(size of a page)
+#endif
+#define GC_PAGE_SZ (1 << GC_PAGE_LG2)
+#define GC_PAGE_OFFSET (JL_HEAP_ALIGNMENT - (sizeof(jl_taggedvalue_t) % JL_HEAP_ALIGNMENT))
 
 // common types and globals
 #ifdef _P64
@@ -307,25 +314,12 @@ extern jl_gc_page_stack_t global_page_pool_lazily_freed;
 extern jl_gc_page_stack_t global_page_pool_clean;
 extern jl_gc_page_stack_t global_page_pool_freed;
 
-#define GC_BACKOFF_MIN 4
-#define GC_BACKOFF_MAX 12
-
-STATIC_INLINE void gc_backoff(int *i) JL_NOTSAFEPOINT
-{
-    if (*i < GC_BACKOFF_MAX) {
-        (*i)++;
-    }
-    for (int j = 0; j < (1 << *i); j++) {
-        jl_cpu_pause();
-    }
-}
-
 // Lock-free stack implementation taken
 // from Herlihy's "The Art of Multiprocessor Programming"
 // XXX: this is not a general-purpose lock-free stack. We can
 // get away with just using a CAS and not implementing some ABA
 // prevention mechanism since once a node is popped from the
-// `jl_gc_global_page_pool_t`, it may only be pushed back to them
+// `jl_gc_page_stack_t`, it may only be pushed back to them
 // in the sweeping phase, which also doesn't push a node into the
 // same stack after it's popped
 
@@ -355,6 +349,28 @@ STATIC_INLINE jl_gc_pagemeta_t *pop_lf_back(jl_gc_page_stack_t *pool) JL_NOTSAFE
     }
 }
 
+typedef struct {
+    _Atomic(size_t) n_freed_objs;
+    _Atomic(size_t) n_pages_allocd;
+} gc_fragmentation_stat_t;
+
+#ifdef GC_SMALL_PAGE
+#ifdef _P64
+#define REGION0_PG_COUNT (1 << 16)
+#define REGION1_PG_COUNT (1 << 18)
+#define REGION2_PG_COUNT (1 << 18)
+#define REGION0_INDEX(p) (((uintptr_t)(p) >> 12) & 0xFFFF) // shift by GC_PAGE_LG2
+#define REGION1_INDEX(p) (((uintptr_t)(p) >> 28) & 0x3FFFF)
+#define REGION_INDEX(p)  (((uintptr_t)(p) >> 46) & 0x3FFFF)
+#else
+#define REGION0_PG_COUNT (1 << 10)
+#define REGION1_PG_COUNT (1 << 10)
+#define REGION2_PG_COUNT (1 << 0)
+#define REGION0_INDEX(p) (((uintptr_t)(p) >> 12) & 0x3FF) // shift by GC_PAGE_LG2
+#define REGION1_INDEX(p) (((uintptr_t)(p) >> 22) & 0x3FF)
+#define REGION_INDEX(p)  (0)
+#endif
+#else
 #ifdef _P64
 #define REGION0_PG_COUNT (1 << 16)
 #define REGION1_PG_COUNT (1 << 16)
@@ -369,6 +385,7 @@ STATIC_INLINE jl_gc_pagemeta_t *pop_lf_back(jl_gc_page_stack_t *pool) JL_NOTSAFE
 #define REGION0_INDEX(p) (((uintptr_t)(p) >> 14) & 0xFF) // shift by GC_PAGE_LG2
 #define REGION1_INDEX(p) (((uintptr_t)(p) >> 22) & 0x3FF)
 #define REGION_INDEX(p)  (0)
+#endif
 #endif
 
 // define the representation of the levels of the page-table (0 to 2)
@@ -551,7 +568,7 @@ extern uv_cond_t gc_threads_cond;
 extern _Atomic(int) gc_n_threads_marking;
 extern _Atomic(int) gc_n_threads_sweeping;
 void gc_mark_queue_all_roots(jl_ptls_t ptls, jl_gc_markqueue_t *mq);
-void gc_mark_finlist_(jl_gc_markqueue_t *mq, jl_value_t **fl_begin, jl_value_t **fl_end) JL_NOTSAFEPOINT;
+void gc_mark_finlist_(jl_gc_markqueue_t *mq, jl_value_t *fl_parent, jl_value_t **fl_begin, jl_value_t **fl_end) JL_NOTSAFEPOINT;
 void gc_mark_finlist(jl_gc_markqueue_t *mq, arraylist_t *list, size_t start) JL_NOTSAFEPOINT;
 void gc_mark_loop_serial_(jl_ptls_t ptls, jl_gc_markqueue_t *mq);
 void gc_mark_loop_serial(jl_ptls_t ptls);

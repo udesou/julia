@@ -5,24 +5,6 @@
 
 #ifdef LIBRARY_EXPORTS
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern int mmtk_object_is_managed_by_mmtk(void* addr);
-extern unsigned char mmtk_pin_object(void* obj);
-// FIXME: Pinning objects that get hashed in the ptrhash table
-// until we implement address space hashing.
-#ifdef MMTK_GC
-#define PTRHASH_PIN(key) mmtk_pin_object(key);
-#else
-#define PTRHASH_PIN(key)
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
 // Generated file, needs to be searched in include paths so that the builddir
 // retains priority
 #include <jl_internal_funcs.inc>
@@ -39,6 +21,32 @@ extern unsigned char mmtk_pin_object(void* obj);
 #include "htable.h"
 #include "arraylist.h"
 #include "analyzer_annotations.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int mmtk_object_is_managed_by_mmtk(void* addr);
+extern unsigned char mmtk_pin_object(void* obj);
+extern unsigned char mmtk_unpin_object(void* obj);
+#ifdef __clang_gcanalyzer__
+extern void PTRHASH_PIN(void* key) JL_NOTSAFEPOINT;
+extern void PTRHASH_UNPIN(void* key) JL_NOTSAFEPOINT;
+#else
+// FIXME: Pinning objects that get hashed in the ptrhash table
+// until we implement address space hashing.
+#ifdef MMTK_GC
+#define PTRHASH_PIN(key) mmtk_pin_object(key);
+#define PTRHASH_UNPIN(key) mmtk_unpin_object(key);
+#else
+#define PTRHASH_PIN(key)
+#define PTRHASH_UNPIN(key)
+#endif
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #include <setjmp.h>
 #ifndef _OS_WINDOWS_
@@ -907,6 +915,24 @@ extern void _JL_GC_PUSHARGS(jl_value_t **, size_t) JL_NOTSAFEPOINT;
 
 extern void JL_GC_POP() JL_NOTSAFEPOINT;
 
+#ifdef MMTK_GC
+extern void JL_GC_PUSH1_NO_TPIN(void *) JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH2_NO_TPIN(void *, void *) JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH3_NO_TPIN(void *, void *, void *)  JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH4_NO_TPIN(void *, void *, void *, void *)  JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH5_NO_TPIN(void *, void *, void *, void *, void *)  JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH7_NO_TPIN(void *, void *, void *, void *, void *, void *, void *)  JL_NOTSAFEPOINT;
+extern void JL_GC_PUSH8_NO_TPIN(void *, void *, void *, void *, void *, void *, void *, void *)  JL_NOTSAFEPOINT;
+extern void _JL_GC_PUSHARGS_NO_TPIN(jl_value_t **, size_t) JL_NOTSAFEPOINT;
+// This is necessary, because otherwise the analyzer considers this undefined
+// behavior and terminates the exploration
+#define JL_GC_PUSHARGS_NO_TPIN(rts_var, n)     \
+  rts_var = (jl_value_t **)alloca(sizeof(void*) * (n)); \
+  memset(rts_var, 0, sizeof(void*) * (n)); \
+  _JL_GC_PUSHARGS_NO_TPIN(rts_var, (n));
+
+#endif
+
 #else
 
 #define JL_GC_PUSH1(arg1)                                                                               \
@@ -1039,6 +1065,8 @@ JL_DLLEXPORT void *jl_malloc_stack(size_t *bufsz, struct _jl_task_t *owner) JL_N
 JL_DLLEXPORT void jl_free_stack(void *stkbuf, size_t bufsz);
 JL_DLLEXPORT void jl_gc_use(jl_value_t *a);
 JL_DLLEXPORT uint64_t jl_gc_get_max_memory(void);
+// Set GC memory trigger in bytes for greedy memory collecting
+JL_DLLEXPORT void jl_gc_set_max_memory(uint64_t max_mem);
 
 JL_DLLEXPORT void jl_clear_malloc_data(void);
 
@@ -1845,12 +1873,12 @@ JL_DLLEXPORT void JL_NORETURN jl_exceptionf(jl_datatype_t *ty,
 JL_DLLEXPORT void JL_NORETURN jl_too_few_args(const char *fname, int min);
 JL_DLLEXPORT void JL_NORETURN jl_too_many_args(const char *fname, int max);
 JL_DLLEXPORT void JL_NORETURN jl_type_error(const char *fname,
-                                            jl_value_t *expected JL_MAYBE_UNROOTED,
-                                            jl_value_t *got JL_MAYBE_UNROOTED);
+                                            jl_value_t *expected JL_MAYBE_UNROOTED JL_MAYBE_UNPINNED,
+                                            jl_value_t *got JL_MAYBE_UNROOTED JL_MAYBE_UNPINNED);
 JL_DLLEXPORT void JL_NORETURN jl_type_error_rt(const char *fname,
                                                const char *context,
-                                               jl_value_t *ty JL_MAYBE_UNROOTED,
-                                               jl_value_t *got JL_MAYBE_UNROOTED);
+                                               jl_value_t *ty JL_MAYBE_UNROOTED JL_MAYBE_UNPINNED,
+                                               jl_value_t *got JL_MAYBE_UNROOTED JL_MAYBE_UNPINNED);
 JL_DLLEXPORT void JL_NORETURN jl_undefined_var_error(jl_sym_t *var);
 JL_DLLEXPORT void JL_NORETURN jl_has_no_field_error(jl_sym_t *type_name, jl_sym_t *var);
 JL_DLLEXPORT void JL_NORETURN jl_atomic_error(char *str);

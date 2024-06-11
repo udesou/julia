@@ -381,7 +381,9 @@ void jl_gc_init(void)
     char* max_size_def = getenv("MMTK_MAX_HSIZE");
     char* max_size_gb = getenv("MMTK_MAX_HSIZE_G");
 
-    // default min heap currently set as Julia's default_collect_interval
+    // default min heap currently set as 0
+    // and default max heap currently set as 0
+    // which means that by default mmtk will use stock heuristics
     if (min_size_def != NULL) {
         char *p;
         double min_size = strtod(min_size_def, &p);
@@ -391,10 +393,13 @@ void jl_gc_init(void)
         double min_size = strtod(min_size_gb, &p);
         min_heap_size = (long) 1024 * 1024 * 1024 * min_size;
     } else {
+<<<<<<< HEAD
         min_heap_size = default_collect_interval;
+=======
+        min_heap_size = 0;
+>>>>>>> v1.9.2+RAI
     }
 
-    // default max heap currently set as 30 Gb
     if (max_size_def != NULL) {
         char *p;
         double max_size = strtod(max_size_def, &p);
@@ -404,7 +409,11 @@ void jl_gc_init(void)
         double max_size = strtod(max_size_gb, &p);
         max_heap_size = (long) 1024 * 1024 * 1024 * max_size;
     } else {
+<<<<<<< HEAD
         max_heap_size = (long) uv_get_free_memory() * 70 / 100;
+=======
+        max_heap_size = 0;
+>>>>>>> v1.9.2+RAI
     }
 
     // Assert that the number of stock GC threads is 0; MMTK uses the number of threads in jl_options.ngcthreads
@@ -425,11 +434,11 @@ void jl_gc_init(void)
     // TODO: We just assume mark threads means GC threads, and ignore the number of concurrent sweep threads.
     // If the two values are the same, we can use either. Otherwise, we need to be careful.
     uintptr_t gcthreads = jl_options.ngcthreads;
-    if (max_size_def != NULL || (max_size_gb != NULL && (min_size_def == NULL && min_size_gb == NULL))) {
-        mmtk_gc_init(0, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
-    } else {
-        mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
-    }
+    // if only max_heap_size is set (max_size_def != 0), mmtk will run with a fixed heap size
+    // if both min_heap_size and max_heap_size are set (their values different than 0), mmtk will use membalancer
+    // and resize the heap within those values. If none of these variables are set, then mmtk will use stock heuristics
+    // note that this will be overwritten in Rust by the env variable MMTK_GC_TRIGGER
+    mmtk_gc_init(min_heap_size, max_heap_size, gcthreads, &mmtk_upcalls, (sizeof(jl_taggedvalue_t)), jl_buff_tag);
 }
 
 // allocation wrappers that track allocation and let collection run

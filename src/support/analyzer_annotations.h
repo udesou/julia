@@ -13,13 +13,17 @@
 #define JL_PROPAGATES_ROOT __attribute__((annotate("julia_propagates_root")))
 #define JL_NOTSAFEPOINT __attribute__((annotate("julia_not_safepoint")))
 #define JL_MAYBE_UNROOTED __attribute__((annotate("julia_maybe_unrooted")))
+#define JL_MAYBE_UNPINNED __attribute__((annotate("julia_maybe_unpinned")))
 #define JL_GLOBALLY_ROOTED __attribute__((annotate("julia_globally_rooted")))
+#define JL_GLOBALLY_PINNED __attribute__((annotate("julia_globally_pinned")))
+#define JL_GLOBALLY_TPINNED __attribute__((annotate("julia_globally_tpinned")))
 #define JL_ROOTING_ARGUMENT __attribute__((annotate("julia_rooting_argument")))
 #define JL_ROOTED_ARGUMENT __attribute__((annotate("julia_rooted_argument")))
 #define JL_GC_DISABLED __attribute__((annotate("julia_gc_disabled")))
 #define JL_ALWAYS_LEAFTYPE JL_GLOBALLY_ROOTED
 #define JL_ROOTS_TEMPORARILY __attribute__((annotate("julia_temporarily_roots")))
 #define JL_REQUIRE_ROOTED_SLOT __attribute__((annotate("julia_require_rooted_slot")))
+#define JL_REQUIRE_TPIN __attribute__((annotate("julia_require_tpin")))
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,13 +38,22 @@ extern "C" {
 #define JL_PROPAGATES_ROOT
 #define JL_NOTSAFEPOINT
 #define JL_MAYBE_UNROOTED
+#define JL_MAYBE_UNPINNED
+// The runtime may mark any object that is reachable from a global root as globally rooted.
+// So JL_GLOBALLY_ROOTED does not need to an actual root. Thus we don't know anything
+// about pining state.
 #define JL_GLOBALLY_ROOTED
+// A root may be pinned. But any object reachable from the root is not pinned.
+#define JL_GLOBALLY_PINNED
+// A root may be transitively pinned, and any object reachable from the root is transitively pinned.
+#define JL_GLOBALLY_TPINNED
 #define JL_ROOTING_ARGUMENT
 #define JL_ROOTED_ARGUMENT
 #define JL_GC_DISABLED
 #define JL_ALWAYS_LEAFTYPE
 #define JL_ROOTS_TEMPORARILY
 #define JL_REQUIRE_ROOTED_SLOT
+#define JL_REQUIRE_TPIN
 #define JL_GC_PROMISE_ROOTED(x) (void)(x)
 #define jl_may_leak(x) (void)(x)
 
