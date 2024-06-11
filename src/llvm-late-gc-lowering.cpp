@@ -2351,9 +2351,6 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
 
                 newI = builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveBeginHook), args_llvm );
 
-                // newI->setAttributes(newI->getCalledFunction()->getAttributes());
-                // newI->takeName(CI);
-
                 CI->replaceAllUsesWith(newI);
             } else if (callee && (callee == gc_preserve_end_func)) {
                 /* Replace with a call to the hook functions */
@@ -2362,9 +2359,6 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 CallInst *newI;
                 builder.SetCurrentDebugLocation(CI->getDebugLoc());
                 newI = builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveEndHook), {});
-
-                // newI->setAttributes(newI->getCalledFunction()->getAttributes());
-                // newI->takeName(CI);
 
                 CI->replaceAllUsesWith(newI);
             } else if (pointer_from_objref_func != nullptr && callee == pointer_from_objref_func) {
