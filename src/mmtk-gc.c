@@ -570,19 +570,27 @@ JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array
     mmtk_memory_region_copy(&ptls->mmtk_mutator, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
 }
 
-#define jl_p_tpin_gcstack (jl_current_task->tpin_gcstack)
+#define jl_p_gcpreserve_stack (jl_current_task->gcpreserve_stack)
 
-#define JL_GC_PUSHARGS_TPIN_ROOT_OBJS(rts_var,n)                                                        \
+// This macro currently uses malloc instead of alloca because this function will exit
+// after pushing the roots into the gc_preserve_stack, which means that the preserve_begin function's
+// stack frame will be destroyed (together with its alloca variables). When we support lowering this code
+// inside the same function that is doing the preserve_begin/preserve_end calls we should be able to simple use allocas.
+// Note also that we use a separate stack for gc preserve roots to avoid the possibility of calling free
+// on a stack that has been allocated with alloca instead of malloc, which could happen depending on the order in which
+// JL_GC_POP() and jl_gc_preserve_end_hook() occurs.
+
+#define JL_GC_PUSHARGS_PRESERVE_ROOT_OBJS(rts_var,n)                                                    \
   rts_var = ((jl_value_t**)malloc(((n)+2)*sizeof(jl_value_t*)))+2;                                      \
   ((void**)rts_var)[-2] = (void*)JL_GC_ENCODE_PUSHARGS(n);                                              \
-  ((void**)rts_var)[-1] = jl_p_tpin_gcstack;                                                            \
+  ((void**)rts_var)[-1] = jl_p_gcpreserve_stack;                                                        \
   memset((void*)rts_var, 0, (n)*sizeof(jl_value_t*));                                                   \
-  jl_p_tpin_gcstack = (jl_gcframe_t*)&(((void**)rts_var)[-2]);                                          \
+  jl_p_gcpreserve_stack = (jl_gcframe_t*)&(((void**)rts_var)[-2]);                                      \
 
-#define JL_GC_POP_TPIN_ROOT_OBJS()                                                                      \
-    jl_gcframe_t *curr = jl_p_tpin_gcstack;                                                             \
+#define JL_GC_POP_PRESERVE_ROOT_OBJS()                                                                  \
+    jl_gcframe_t *curr = jl_p_gcpreserve_stack;                                                         \
     if(curr) {                                                                                          \
-        (jl_p_tpin_gcstack = jl_p_tpin_gcstack->prev);                                                  \
+        (jl_p_gcpreserve_stack = jl_p_gcpreserve_stack->prev);                                          \
         free(curr);                                                                                     \
     }
 
@@ -593,7 +601,7 @@ JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array
 JL_DLLEXPORT void jl_gc_preserve_begin_hook(int n, ...) JL_NOTSAFEPOINT
 {
     jl_value_t** frame;
-    JL_GC_PUSHARGS_TPIN_ROOT_OBJS(frame, n);
+    JL_GC_PUSHARGS_PRESERVE_ROOT_OBJS(frame, n);
     if (n == 0) return;
 
     va_list args;
@@ -606,7 +614,7 @@ JL_DLLEXPORT void jl_gc_preserve_begin_hook(int n, ...) JL_NOTSAFEPOINT
 
 JL_DLLEXPORT void jl_gc_preserve_end_hook(void) JL_NOTSAFEPOINT
 {
-    JL_GC_POP_TPIN_ROOT_OBJS();
+    JL_GC_POP_PRESERVE_ROOT_OBJS();
 }
 
 // No inline write barrier -- only used for debugging
