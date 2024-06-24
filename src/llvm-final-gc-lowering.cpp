@@ -52,6 +52,8 @@ private:
     Function *bigAllocFunc;
     Function *allocTypedFunc;
 #ifdef MMTK_GC
+    Function *gcPreserveBeginHookFunc;
+    Function *gcPreserveEndHookFunc;
     Function *writeBarrier1Func;
     Function *writeBarrier2Func;
     Function *writeBarrierBindingFunc;
@@ -145,7 +147,7 @@ void FinalLowerGC::lowerPushGCFrame(CallInst *target, Function &F)
     IRBuilder<> builder(target->getContext());
     builder.SetInsertPoint(&*(++BasicBlock::iterator(target)));
     StoreInst *inst = builder.CreateAlignedStore(
-                ConstantInt::get(getSizeTy(F.getContext()), JL_GC_ENCODE_PUSHARGS(nRoots)),
+                ConstantInt::get(getSizeTy(F.getContext()), JL_GC_ENCODE_PUSHARGS_NO_TPIN(nRoots)),
                 builder.CreateBitCast(
                         builder.CreateConstInBoundsGEP1_32(T_prjlvalue, gcframe, 0),
                         getSizeTy(F.getContext())->getPointerTo()),
@@ -407,12 +409,14 @@ bool FinalLowerGC::doInitialization(Module &M) {
     bigAllocFunc = getOrDeclare(jl_well_known::GCBigAlloc);
     allocTypedFunc = getOrDeclare(jl_well_known::GCAllocTyped);
 #ifdef MMTK_GC
+    gcPreserveBeginHookFunc = getOrDeclare(jl_well_known::GCPreserveBeginHook);
+    gcPreserveEndHookFunc = getOrDeclare(jl_well_known::GCPreserveEndHook);
     writeBarrier1Func = getOrDeclare(jl_well_known::GCWriteBarrier1);
     writeBarrier2Func = getOrDeclare(jl_well_known::GCWriteBarrier2);
     writeBarrierBindingFunc = getOrDeclare(jl_well_known::GCWriteBarrierBinding);
     writeBarrier1SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier1Slow);
     writeBarrier2SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier2Slow);
-    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, writeBarrier1Func, writeBarrier2Func, writeBarrierBindingFunc, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
+    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, gcPreserveBeginHookFunc, gcPreserveEndHookFunc, writeBarrier1Func, writeBarrier2Func, writeBarrierBindingFunc, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
 #else
     GlobalValue *functionList[] = {queueRootFunc, queueBindingFunc, poolAllocFunc, bigAllocFunc, allocTypedFunc};
 #endif
@@ -432,8 +436,8 @@ bool FinalLowerGC::doInitialization(Module &M) {
 bool FinalLowerGC::doFinalization(Module &M)
 {
 #ifdef MMTK_GC
-    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, writeBarrier1Func, writeBarrier2Func, writeBarrierBindingFunc, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
-    queueRootFunc = poolAllocFunc = bigAllocFunc = writeBarrier1Func = writeBarrier2Func = writeBarrierBindingFunc = writeBarrier1SlowFunc = writeBarrier2SlowFunc = nullptr;
+    GlobalValue *functionList[] = {queueRootFunc, poolAllocFunc, bigAllocFunc, gcPreserveBeginHookFunc, gcPreserveEndHookFunc, writeBarrier1Func, writeBarrier2Func, writeBarrierBindingFunc, writeBarrier1SlowFunc, writeBarrier2SlowFunc};
+    queueRootFunc = poolAllocFunc = bigAllocFunc = gcPreserveBeginHookFunc = gcPreserveEndHookFunc = writeBarrier1Func = writeBarrier2Func = writeBarrierBindingFunc = writeBarrier1SlowFunc = writeBarrier2SlowFunc = nullptr;
 #else
     GlobalValue *functionList[] = {queueRootFunc, queueBindingFunc, poolAllocFunc, bigAllocFunc, allocTypedFunc};
     queueRootFunc = queueBindingFunc = poolAllocFunc = bigAllocFunc = allocTypedFunc = nullptr;
