@@ -2308,6 +2308,7 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 continue;
             }
             Value *callee = CI->getCalledOperand();
+#ifdef MMTK_GC
             if (callee && (callee == gc_flush_func)) {
                 /* No replacement */
             } else if (callee && (callee == gc_preserve_begin_func)) {
@@ -2354,6 +2355,11 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                 IRBuilder<> builder(CI);
                 builder.SetCurrentDebugLocation(CI->getDebugLoc());
                 builder.CreateCall(getOrDeclare(jl_well_known::GCPreserveEndHook), {});
+#else
+            if (callee && (callee == gc_flush_func || callee == gc_preserve_begin_func
+                        || callee == gc_preserve_end_func)) {
+                /* No replacement */
+#endif
             } else if (pointer_from_objref_func != nullptr && callee == pointer_from_objref_func) {
                 auto *obj = CI->getOperand(0);
                 auto *ASCI = new AddrSpaceCastInst(obj, JuliaType::get_pjlvalue_ty(obj->getContext()), "", CI);
