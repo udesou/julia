@@ -2442,6 +2442,7 @@ extern void mmtk_post_alloc(void* mutator, void* refer, size_t bytes, int alloca
 
 
 extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
+extern const void* MMTK_SIDE_VO_BIT_BASE_ADDRESS;
 
 // These need to be constants.
 
@@ -2529,15 +2530,21 @@ STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t si
 }
 
 STATIC_INLINE void mmtk_immix_post_alloc_slow(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // printf("Called post alloc slow function with object %p\n", obj);
-    // fflush(stdout);
     mmtk_post_alloc(mutator, obj, size, 0);
 }
 
 STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // Calling into post alloc function to set up the VO bit
-    // FIXME: Inline the code to set the VO bit here instead
-    mmtk_immix_post_alloc_slow(mutator, obj, size);
+    // set up the VO bit
+    intptr_t addr = (intptr_t) obj;
+    uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+    intptr_t shift = (addr >> 3) & 0b111;
+    while(1) {
+        uint8_t old_val = *meta_addr;
+        uint8_t new_val = old_val | (1 << shift);
+        if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
+            break;
+        }
+    }
 }
 
 STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
