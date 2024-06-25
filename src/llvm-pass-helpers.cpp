@@ -536,7 +536,7 @@ namespace jl_well_known {
             auto func = Function::Create(
                 FunctionType::get(
                     Type::getVoidTy(context.getLLVMContext()),
-                    { Type::getInt8PtrTy(context.getLLVMContext()), Type::getInt32Ty(context.getLLVMContext()) },
+                    { context.T_prjlvalue, Type::getInt32Ty(context.getLLVMContext()) },
                     false),
                 Function::ExternalLinkage,
                 GC_POST_ALLOC_SLOW_NAME);
