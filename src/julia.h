@@ -2455,6 +2455,12 @@ extern const void* MMTK_SIDE_VO_BIT_BASE_ADDRESS;
 #define MMTK_NEEDS_WRITE_BARRIER (1)
 #endif
 
+#ifdef MMTK_CONSERVATIVE_SCAN
+#define MMTK_NEEDS_VO_BIT (1)
+#else
+#define MMTK_NEEDS_VO_BIT (0)
+#endif
+
 #define MMTK_DEFAULT_IMMIX_ALLOCATOR (0)
 #define MMTK_IMMORTAL_BUMP_ALLOCATOR (0)
 
@@ -2535,10 +2541,13 @@ STATIC_INLINE void mmtk_immix_post_alloc_slow(MMTkMutatorContext* mutator, void*
 
 STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
     // set up the VO bit
-    intptr_t addr = (intptr_t) obj;
-    intptr_t shift = (addr >> 3) & 0b111;
-    uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
-    (*vo_meta_addr) = (*vo_meta_addr) | (1 << shift);
+    if (MMTK_NEEDS_VO_BIT) {
+        intptr_t addr = (intptr_t) obj;
+        intptr_t shift = (addr >> 3) & 0b111;
+        uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+        uint8_t new_val = (*vo_meta_addr) | (1 << shift);
+        (*vo_meta_addr) = new_val;
+    }
 }
 
 STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
@@ -2547,11 +2556,14 @@ STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t
 }
 
 STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // set VO bit
     intptr_t addr = (intptr_t) obj;
     intptr_t shift = (addr >> 3) & 0b111;
-    uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
-    (*vo_meta_addr) = (*vo_meta_addr) | (1 << shift);
+    // set VO bit
+    if (MMTK_NEEDS_VO_BIT) {
+        uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+        uint8_t new_val = (*vo_meta_addr) | (1 << shift);
+        (*vo_meta_addr) = new_val;
+    }
 
     if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
         uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
