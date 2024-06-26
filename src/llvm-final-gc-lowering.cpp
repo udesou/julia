@@ -376,36 +376,41 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 auto v_as_ptr = builder.CreateIntToPtr(v_raw, poolAllocFunc->getReturnType());
 
                 if (MMTK_NEEDS_VO_BIT) {
+                    // Should we generate fastpath post alloc sequence here?
+                    // Setting this to false will increase allocation overhead a lot, and should only be used for debugging.
+                    const bool INLINE_FASTPATH_POST_ALLOCATION = false;
+
                     // set VO bit
-                    // FIXME: inline the code to set vo bit
-                    builder.CreateCall(postAllocSlowFunc, { v_as_ptr, pool_osize_i32 });
-                    // // set vo bit
-                    // auto intptr_ty = Type::getInt64Ty(target->getContext());
-                    // auto i8_ty = Type::getInt8Ty(F.getContext());
-                    // intptr_t metadata_base_address = reinterpret_cast<intptr_t>(MMTK_SIDE_VO_BIT_BASE_ADDRESS);
-                    // auto metadata_base_val = ConstantInt::get(intptr_ty, metadata_base_address);
-                    // auto metadata_base_ptr = ConstantExpr::getIntToPtr(metadata_base_val, PointerType::get(i8_ty, 0));
+                    if (INLINE_FASTPATH_POST_ALLOCATION) {
+                        auto intptr_ty = Type::getInt64Ty(target->getContext());
+                        auto i8_ty = Type::getInt8Ty(F.getContext());
+                        intptr_t metadata_base_address = reinterpret_cast<intptr_t>(MMTK_SIDE_VO_BIT_BASE_ADDRESS);
+                        auto metadata_base_val = ConstantInt::get(intptr_ty, metadata_base_address);
+                        auto metadata_base_ptr = ConstantExpr::getIntToPtr(metadata_base_val, PointerType::get(i8_ty, 0));
 
-                    // // intptr_t addr = (intptr_t) v;
-                    // auto addr = v_raw;
+                        // intptr_t addr = (intptr_t) v;
+                        auto addr = v_raw;
 
-                    // // uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
-                    // auto shr = builder.CreateLShr(addr, ConstantInt::get(intptr_ty, 6));
-                    // auto metadata_ptr = builder.CreateGEP(i8_ty, metadata_base_ptr, shr);
+                        // uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+                        auto shr = builder.CreateLShr(addr, ConstantInt::get(intptr_ty, 6));
+                        auto metadata_ptr = builder.CreateGEP(i8_ty, metadata_base_ptr, shr);
 
-                    // // intptr_t shift = (addr >> 3) & 0b111;
-                    // auto shift = builder.CreateAnd(builder.CreateLShr(addr, ConstantInt::get(intptr_ty, 3)), ConstantInt::get(intptr_ty, 7));
+                        // intptr_t shift = (addr >> 3) & 0b111;
+                        auto shift = builder.CreateAnd(builder.CreateLShr(addr, ConstantInt::get(intptr_ty, 3)), ConstantInt::get(intptr_ty, 7));
 
-                    // // uint8_t byte_val = *vo_meta_addr;
-                    // auto byte_val = builder.CreateAlignedLoad(i8_ty, metadata_ptr, Align());
+                        // uint8_t byte_val = *vo_meta_addr;
+                        auto byte_val = builder.CreateAlignedLoad(i8_ty, metadata_ptr, Align());
 
-                    // // uint8_t new_val = byte_val | (1 << shift);
-                    // auto shifted_val = builder.CreateShl(ConstantInt::get(intptr_ty, 1), shift);
-                    // auto shifted_val_i8 = builder.CreateTruncOrBitCast(shifted_val, i8_ty);
-                    // auto new_val = builder.CreateOr(byte_val, shifted_val_i8);
+                        // uint8_t new_val = byte_val | (1 << shift);
+                        auto shifted_val = builder.CreateShl(ConstantInt::get(intptr_ty, 1), shift);
+                        auto shifted_val_i8 = builder.CreateTruncOrBitCast(shifted_val, i8_ty);
+                        auto new_val = builder.CreateOr(byte_val, shifted_val_i8);
 
-                    // // (*vo_meta_addr) = new_val;
-                    // builder.CreateStore(metadata_ptr, new_val);
+                        // (*vo_meta_addr) = new_val;
+                        builder.CreateStore(metadata_ptr, new_val);
+                    } else {
+                        builder.CreateCall(postAllocSlowFunc, { v_as_ptr, pool_osize_i32 });
+                    }
                 }
 
                 builder.CreateBr(top_cont);
