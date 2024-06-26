@@ -2536,15 +2536,9 @@ STATIC_INLINE void mmtk_immix_post_alloc_slow(MMTkMutatorContext* mutator, void*
 STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
     // set up the VO bit
     intptr_t addr = (intptr_t) obj;
-    uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
     intptr_t shift = (addr >> 3) & 0b111;
-    while(1) {
-        uint8_t old_val = *meta_addr;
-        uint8_t new_val = old_val | (1 << shift);
-        if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
-            break;
-        }
-    }
+    uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+    (*vo_meta_addr) = (*vo_meta_addr) | (1 << shift);
 }
 
 STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
@@ -2553,10 +2547,14 @@ STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t
 }
 
 STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
+    // set VO bit
+    intptr_t addr = (intptr_t) obj;
+    intptr_t shift = (addr >> 3) & 0b111;
+    uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
+    (*vo_meta_addr) = (*vo_meta_addr) | (1 << shift);
+
     if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) obj;
         uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        intptr_t shift = (addr >> 3) & 0b111;
         while(1) {
             uint8_t old_val = *meta_addr;
             uint8_t new_val = old_val | (1 << shift);
