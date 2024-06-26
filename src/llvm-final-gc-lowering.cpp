@@ -378,7 +378,7 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 if (MMTK_NEEDS_VO_BIT) {
                     // Should we generate fastpath post alloc sequence here?
                     // Setting this to false will increase allocation overhead a lot, and should only be used for debugging.
-                    const bool INLINE_FASTPATH_POST_ALLOCATION = false;
+                    const bool INLINE_FASTPATH_POST_ALLOCATION = true;
 
                     // set VO bit
                     if (INLINE_FASTPATH_POST_ALLOCATION) {
@@ -407,7 +407,7 @@ Value *FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                         auto new_val = builder.CreateOr(byte_val, shifted_val_i8);
 
                         // (*vo_meta_addr) = new_val;
-                        builder.CreateStore(metadata_ptr, new_val);
+                        builder.CreateStore(new_val, metadata_ptr);
                     } else {
                         builder.CreateCall(postAllocSlowFunc, { v_as_ptr, pool_osize_i32 });
                     }
