@@ -29,6 +29,9 @@ JL_DLLEXPORT void jl_gc_set_cb_notify_external_alloc(jl_gc_cb_notify_external_al
 JL_DLLEXPORT void jl_gc_set_cb_notify_external_free(jl_gc_cb_notify_external_free_t cb, int enable)
 {
 }
+JL_DLLEXPORT void jl_gc_set_cb_notify_gc_pressure(jl_gc_cb_notify_gc_pressure_t cb, int enable)
+{
+}
 
 
 inline void maybe_collect(jl_ptls_t ptls)
@@ -495,20 +498,6 @@ void jl_gc_debug_print_status(void) JL_NOTSAFEPOINT
 void jl_print_gc_stats(JL_STREAM *s)
 {
 }
-
-#ifdef OBJPROFILE
-void objprofile_count(void *ty, int old, int sz) JL_NOTSAFEPOINT
-{
-}
-
-void objprofile_printall(void)
-{
-}
-
-void objprofile_reset(void)
-{
-}
-#endif
 
 // gc thread function
 void jl_gc_threadfun(void *arg)
