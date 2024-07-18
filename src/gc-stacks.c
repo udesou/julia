@@ -325,6 +325,8 @@ void sweep_stack_pools(void) JL_NOTSAFEPOINT
     }
 }
 
+extern int gc_first_tid;
+
 JL_DLLEXPORT jl_array_t *jl_live_tasks(void)
 {
     size_t nthreads = jl_atomic_load_acquire(&jl_n_threads);

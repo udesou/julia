@@ -3,6 +3,7 @@
 #include "gc.h"
 
 jl_gc_num_t gc_num = {0};
+gc_heapstatus_t gc_heap_stats = {0};
 size_t last_long_collect_interval;
 int gc_n_threads;
 jl_ptls_t* gc_all_tls_states;
@@ -484,7 +485,43 @@ void jl_gc_count_allocd(size_t sz) JL_NOTSAFEPOINT
     jl_batch_accum_heap_size(ptls, sz);
 }
 
+void jl_batch_accum_free_size(jl_ptls_t ptls, uint64_t sz) JL_NOTSAFEPOINT
+{
+    jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.free_acc, jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.free_acc) + sz);
+}
 
+void jl_gc_count_freed(size_t sz) JL_NOTSAFEPOINT
+{
+    jl_batch_accum_free_size(jl_current_task->ptls, sz);
+}
+
+void jl_gc_free_memory(jl_value_t *v, int isaligned) JL_NOTSAFEPOINT
+{
+    assert(jl_is_genericmemory(v));
+    jl_genericmemory_t *m = (jl_genericmemory_t*)v;
+    assert(jl_genericmemory_how(m) == 1 || jl_genericmemory_how(m) == 2);
+    char *d = (char*)m->ptr;
+    if (isaligned)
+        jl_free_aligned(d);
+    else
+        free(d);
+    jl_atomic_store_relaxed(&gc_heap_stats.heap_size,
+        jl_atomic_load_relaxed(&gc_heap_stats.heap_size) - jl_genericmemory_nbytes(m));
+    gc_num.freed += jl_genericmemory_nbytes(m);
+    gc_num.freecall++;
+}
+
+void jl_free_thread_gc_state(jl_ptls_t ptls)
+{
+    jl_gc_markqueue_t *mq = &ptls->gc_tls.mark_queue;
+    ws_queue_t *cq = &mq->chunk_queue;
+    free_ws_array(jl_atomic_load_relaxed(&cq->array));
+    jl_atomic_store_relaxed(&cq->array, NULL);
+    ws_queue_t *q = &mq->ptr_queue;
+    free_ws_array(jl_atomic_load_relaxed(&q->array));
+    jl_atomic_store_relaxed(&q->array, NULL);
+    arraylist_free(&mq->reclaim_set);
+}
 
 // GCNum, statistics manipulation
 // ---

@@ -307,7 +307,7 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 builder.CreateStore(new_cursor, cursor_ptr);
 
                 // ptls->gc_num.allocd += osize;
-                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_num));
+                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
                 auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
                 auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
                 auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
@@ -322,11 +322,13 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 phiNode->addIncoming(v_as_ptr, fastpath);
                 phiNode->takeName(target);
 
-                return phiNode;
+                target->replaceAllUsesWith(phiNode);
+                target->eraseFromParent();
+                return;
             } else {
                 auto pool_offs = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
-                newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize_i32 });
-                derefAttr = Attribute::getWithDereferenceableBytes(F.getContext(), osize);
+                newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize_i32, type });
+                derefBytes = sizeof(void*);
             }
         #endif // MMTK_GC
         }
@@ -368,13 +370,6 @@ bool FinalLowerGC::runOnFunction(Function &F)
     allocTypedFunc = getOrDeclare(jl_well_known::GCAllocTyped);
     T_size = F.getParent()->getDataLayout().getIntPtrType(F.getContext());
 
-#ifdef MMTK_GC
-    auto writeBarrier1Func = getOrNull(jl_intrinsics::writeBarrier1);
-    auto writeBarrier2Func = getOrNull(jl_intrinsics::writeBarrier2);
-    auto writeBarrier1SlowFunc = getOrNull(jl_intrinsics::writeBarrier1Slow);
-    auto writeBarrier2SlowFunc = getOrNull(jl_intrinsics::writeBarrier2Slow);
-#endif
-
     // Lower all calls to supported intrinsics.
     for (auto &BB : F) {
         for (auto &I : make_early_inc_range(BB)) {
@@ -403,10 +398,10 @@ bool FinalLowerGC::runOnFunction(Function &F)
 
 
 #ifdef MMTK_GC
-            LOWER_INTRINSIC(writeBarrier1Func, lowerWriteBarrier1);
-            LOWER_INTRINSIC(writeBarrier2Func, lowerWriteBarrier2);
-            LOWER_INTRINSIC(writeBarrier1SlowFunc, lowerWriteBarrier1Slow);
-            LOWER_INTRINSIC(writeBarrier2SlowFunc, lowerWriteBarrier2Slow);
+            LOWER_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
+            LOWER_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
+            LOWER_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
+            LOWER_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
 #endif
 
 

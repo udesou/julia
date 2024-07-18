@@ -71,6 +71,14 @@ extern uint64_t finalizer_rngState[];
 extern int gc_n_threads;
 extern jl_ptls_t* gc_all_tls_states;
 
+#ifdef GC_SMALL_PAGE
+#define GC_PAGE_LG2 12 // log2(size of a page)
+#else
+#define GC_PAGE_LG2 14 // log2(size of a page)
+#endif
+#define GC_PAGE_SZ (1 << GC_PAGE_LG2)
+#define GC_PAGE_OFFSET (JL_HEAP_ALIGNMENT - (sizeof(jl_taggedvalue_t) % JL_HEAP_ALIGNMENT))
+
 // This struct must be kept in sync with the Julia type of the same name in base/timing.jl
 typedef struct {
     int64_t     allocd;
@@ -98,6 +106,13 @@ typedef struct {
     uint64_t    last_full_sweep;
     uint64_t    last_incremental_sweep;
 } jl_gc_num_t;
+
+typedef struct {
+    _Atomic(size_t) bytes_mapped;
+    _Atomic(size_t) bytes_resident;
+    _Atomic(size_t) heap_size;
+    _Atomic(size_t) heap_target;
+} gc_heapstatus_t;
 
 extern jl_gc_num_t gc_num;
 
@@ -191,14 +206,6 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifdef GC_SMALL_PAGE
-#define GC_PAGE_LG2 12 // log2(size of a page)
-#else
-#define GC_PAGE_LG2 14 // log2(size of a page)
-#endif
-#define GC_PAGE_SZ (1 << GC_PAGE_LG2)
-#define GC_PAGE_OFFSET (JL_HEAP_ALIGNMENT - (sizeof(jl_taggedvalue_t) % JL_HEAP_ALIGNMENT))
 
 #define jl_malloc_tag ((void*)0xdeadaa01)
 #define jl_singleton_tag ((void*)0xdeadaa02)
@@ -427,13 +434,6 @@ typedef struct {
 typedef struct {
     pagetable1_t *meta1[REGION2_PG_COUNT];
 } pagetable_t;
-
-typedef struct {
-    _Atomic(size_t) bytes_mapped;
-    _Atomic(size_t) bytes_resident;
-    _Atomic(size_t) heap_size;
-    _Atomic(size_t) heap_target;
-} gc_heapstatus_t;
 
 #define GC_PAGE_UNMAPPED        0
 #define GC_PAGE_ALLOCATED       1

@@ -2575,15 +2575,15 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
         if (CFGModified) {
             *CFGModified = true;
         }
+
+        IRBuilder<> builder(CI);
+        builder.SetCurrentDebugLocation(CI->getDebugLoc());
+#ifndef MMTK_GC
         auto DebugInfoMeta = F.getParent()->getModuleFlag("julia.debug_level");
         int debug_info = 1;
         if (DebugInfoMeta != nullptr) {
             debug_info = cast<ConstantInt>(cast<ConstantAsMetadata>(DebugInfoMeta)->getValue())->getZExtValue();
         }
-
-        IRBuilder<> builder(CI);
-        builder.SetCurrentDebugLocation(CI->getDebugLoc());
-#ifndef MMTK_GC
         auto parBits = builder.CreateAnd(EmitLoadTag(builder, T_size, parent), GC_OLD_MARKED);
         setName(parBits, "parent_bits", debug_info);
         auto parOldMarked = builder.CreateICmpEQ(parBits, ConstantInt::get(T_size, GC_OLD_MARKED));

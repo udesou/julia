@@ -275,7 +275,11 @@ namespace jl_intrinsics {
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_1_NAME);
+#if JL_LLVM_VERSION >= 160000
+            intrinsic->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return intrinsic;
         });
     const IntrinsicDescription writeBarrier2(
@@ -290,7 +294,11 @@ namespace jl_intrinsics {
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_2_NAME);
+#if JL_LLVM_VERSION >= 160000
+            intrinsic->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return intrinsic;
         });
     const IntrinsicDescription writeBarrier1Slow(
@@ -305,7 +313,11 @@ namespace jl_intrinsics {
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_1_SLOW_NAME);
+#if JL_LLVM_VERSION >= 160000
+            intrinsic->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return intrinsic;
         });
     const IntrinsicDescription writeBarrier2Slow(
@@ -320,7 +332,11 @@ namespace jl_intrinsics {
                     false),
                 Function::ExternalLinkage,
                 WRITE_BARRIER_2_SLOW_NAME);
+#if JL_LLVM_VERSION >= 160000
+            intrinsic->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             intrinsic->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return intrinsic;
         });
 #endif
@@ -423,7 +439,11 @@ namespace jl_well_known {
                     false),
                 Function::ExternalLinkage,
                 GC_WB_1_NAME);
+#if JL_LLVM_VERSION >= 160000
+            func->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return func;
     });
 
@@ -439,7 +459,11 @@ namespace jl_well_known {
                     false),
                 Function::ExternalLinkage,
                 GC_WB_2_NAME);
+#if JL_LLVM_VERSION >= 160000
+            func->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return func;
     });
 
@@ -455,7 +479,11 @@ namespace jl_well_known {
                     false),
                 Function::ExternalLinkage,
                 GC_WB_1_SLOW_NAME);
+#if JL_LLVM_VERSION >= 160000
+            func->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return func;
     });
 
@@ -471,7 +499,11 @@ namespace jl_well_known {
                     false),
                 Function::ExternalLinkage,
                 GC_WB_2_SLOW_NAME);
+#if JL_LLVM_VERSION >= 160000
+            func->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
+#else
             func->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+#endif
             return func;
     });
 #endif

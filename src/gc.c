@@ -193,8 +193,6 @@ static _Atomic(int) support_conservative_marking = 0;
  * have proper support of GC transition in codegen, we should execute the
  * finalizers in unmanaged (GC safe) mode.
  */
-
-gc_heapstatus_t gc_heap_stats = {0};
 int next_sweep_full = 0;
 
 // List of marked big objects.  Not per-thread.  Accessed only by master thread.
@@ -600,10 +598,7 @@ STATIC_INLINE void jl_batch_accum_heap_size(jl_ptls_t ptls, uint64_t sz) JL_NOTS
     }
 }
 
-STATIC_INLINE void jl_batch_accum_free_size(jl_ptls_t ptls, uint64_t sz) JL_NOTSAFEPOINT
-{
-    jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.free_acc, jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.free_acc) + sz);
-}
+
 
 // big value list
 
@@ -697,28 +692,7 @@ static void sweep_big(jl_ptls_t ptls, int sweep_full) JL_NOTSAFEPOINT
 }
 
 // tracking Memorys with malloc'd storage
-void jl_gc_count_freed(size_t sz) JL_NOTSAFEPOINT
-{
-    jl_batch_accum_free_size(jl_current_task->ptls, sz);
-}
-
-
-static void jl_gc_free_memory(jl_value_t *v, int isaligned) JL_NOTSAFEPOINT
-{
-    assert(jl_is_genericmemory(v));
-    jl_genericmemory_t *m = (jl_genericmemory_t*)v;
-    assert(jl_genericmemory_how(m) == 1 || jl_genericmemory_how(m) == 2);
-    char *d = (char*)m->ptr;
-    if (isaligned)
-        jl_free_aligned(d);
-    else
-        free(d);
-    jl_atomic_store_relaxed(&gc_heap_stats.heap_size,
-        jl_atomic_load_relaxed(&gc_heap_stats.heap_size) - jl_genericmemory_nbytes(m));
-    gc_num.freed += jl_genericmemory_nbytes(m);
-    gc_num.freecall++;
-}
-
+extern void jl_gc_free_memory(jl_value_t *v, int isaligned);
 static void sweep_malloced_memory(void) JL_NOTSAFEPOINT
 {
     gc_time_mallocd_memory_start();
@@ -3380,18 +3354,6 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.allocd, -(int64_t)gc_num.interval);
 }
 
-void jl_free_thread_gc_state(jl_ptls_t ptls)
-{
-    jl_gc_markqueue_t *mq = &ptls->gc_tls.mark_queue;
-    ws_queue_t *cq = &mq->chunk_queue;
-    free_ws_array(jl_atomic_load_relaxed(&cq->array));
-    jl_atomic_store_relaxed(&cq->array, NULL);
-    ws_queue_t *q = &mq->ptr_queue;
-    free_ws_array(jl_atomic_load_relaxed(&q->array));
-    jl_atomic_store_relaxed(&q->array, NULL);
-    arraylist_free(&mq->reclaim_set);
-}
-
 void jl_deinit_thread_heap(jl_ptls_t ptls)
 {
     // Do nothing
@@ -3478,6 +3440,7 @@ JL_DLLEXPORT void *jl_gc_counted_calloc(size_t nm, size_t sz)
     return data;
 }
 
+extern void jl_batch_accum_free_size(jl_ptls_t ptls, uint64_t sz) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_counted_free_with_size(void *p, size_t sz)
 {
     jl_gcframe_t **pgcstack = jl_get_pgcstack();

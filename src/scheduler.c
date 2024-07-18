@@ -112,6 +112,8 @@ void jl_init_threadinginfra(void)
 
 void JL_NORETURN jl_finish_task(jl_task_t *ct);
 
+#ifndef MMTK_GC
+
 static inline int may_mark(void) JL_NOTSAFEPOINT
 {
     return (jl_atomic_load(&gc_n_threads_marking) > 0);
@@ -184,6 +186,18 @@ void jl_concurrent_gc_threadfun(void *arg)
         gc_free_pages();
     }
 }
+
+#else
+void jl_parallel_gc_threadfun(void *arg)
+{
+    mmtk_unreachable();
+}
+
+void jl_concurrent_gc_threadfun(void *arg)
+{
+    mmtk_unreachable();
+}
+#endif
 
 // thread function: used by all mutator threads except the main thread
 void jl_threadfun(void *arg)
