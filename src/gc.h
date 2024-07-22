@@ -47,7 +47,6 @@ extern jl_value_t *jl_gc_pool_alloc_inner(jl_ptls_t ptls, int pool_offset, int o
 extern void jl_rng_split(uint64_t to[JL_RNG_SIZE], uint64_t from[JL_RNG_SIZE]);
 extern void *gc_managed_realloc_(jl_ptls_t ptls, void *d, size_t sz, size_t oldsz,
                                  int isaligned, jl_value_t *owner, int8_t can_collect);
-extern size_t jl_array_nbytes(jl_array_t *a);
 extern void run_finalizers(jl_task_t *ct, int finalizers_thread);
 
 #define malloc_cache_align(sz) jl_malloc_aligned(sz, JL_CACHE_BYTE_ALIGNMENT)

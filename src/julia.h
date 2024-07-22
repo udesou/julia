@@ -646,11 +646,12 @@ typedef struct _jl_binding_t {
     _Atomic(struct _jl_binding_t*) owner;  // for individual imported bindings (NULL until 'resolved')
     _Atomic(jl_value_t*) ty;  // binding type
     uint8_t constp:1;
-    uint8_t exportp:1;
+    uint8_t exportp:1; // `public foo` sets `publicp`, `export foo` sets both `publicp` and `exportp`
+    uint8_t publicp:1; // exportp without publicp is not allowed.
     uint8_t imported:1;
     uint8_t usingfailed:1;
     uint8_t deprecated:2; // 0=not deprecated, 1=renamed, 2=moved to another package
-    uint8_t padding:2;
+    uint8_t padding:1;
 } jl_binding_t;
 
 typedef struct {
@@ -809,7 +810,7 @@ static inline jl_value_t *jl_to_typeof(uintptr_t t)
     return (jl_value_t*)t;
 }
 #else
-extern JL_HIDDEN jl_datatype_t *ijl_small_typeof[(jl_max_tags << 4) / sizeof(jl_datatype_t*)];
+extern JL_DLLEXPORT jl_datatype_t *ijl_small_typeof[(jl_max_tags << 4) / sizeof(jl_datatype_t*)];
 static inline jl_value_t *jl_to_typeof(uintptr_t t)
 {
     if (t < (jl_max_tags << 4))

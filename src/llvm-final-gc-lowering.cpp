@@ -103,7 +103,6 @@ void FinalLowerGC::lowerNewGCFrame(CallInst *target, Function &F)
     builder.CreateMemSet(gcframe, Constant::getNullValue(Type::getInt8Ty(F.getContext())), ptrsize * (nRoots + 2), Align(16), tbaa_gcframe);
 
     target->replaceAllUsesWith(gcframe);
-    target->eraseFromParent();
 }
 
 void FinalLowerGC::lowerPushGCFrame(CallInst *target, Function &F)
@@ -131,7 +130,6 @@ void FinalLowerGC::lowerPushGCFrame(CallInst *target, Function &F)
             gcframe,
             pgcstack,
             Align(sizeof(void*)));
-    target->eraseFromParent();
 }
 
 void FinalLowerGC::lowerPopGCFrame(CallInst *target, Function &F)
@@ -150,7 +148,6 @@ void FinalLowerGC::lowerPopGCFrame(CallInst *target, Function &F)
         pgcstack,
         Align(sizeof(void*)));
     inst->setMetadata(LLVMContext::MD_tbaa, tbaa_gcframe);
-    target->eraseFromParent();
 }
 
 void FinalLowerGC::lowerGetGCFrameSlot(CallInst *target, Function &F)
@@ -170,7 +167,6 @@ void FinalLowerGC::lowerGetGCFrameSlot(CallInst *target, Function &F)
     auto gep = builder.CreateInBoundsGEP(T_prjlvalue, gcframe, index);
     gep->takeName(target);
     target->replaceAllUsesWith(gep);
-    target->eraseFromParent();
 }
 
 void FinalLowerGC::lowerQueueGCRoot(CallInst *target, Function &F)
@@ -187,7 +183,6 @@ void FinalLowerGC::lowerSafepoint(CallInst *target, Function &F)
     IRBuilder<> builder(target);
     Value* signal_page = target->getOperand(0);
     builder.CreateLoad(T_size, signal_page, true);
-    target->eraseFromParent();
 }
 
 #ifdef MMTK_GC
@@ -252,7 +247,7 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
 
             // Should we generate fastpath allocation sequence here? We should always generate fastpath here for MMTk.
             // Setting this to false will increase allocation overhead a lot, and should only be used for debugging.
-            const bool INLINE_FASTPATH_ALLOCATION = true;
+            const bool INLINE_FASTPATH_ALLOCATION = false;
 
             if (INLINE_FASTPATH_ALLOCATION) {
                 // Assuming we use the first immix allocator.
@@ -307,12 +302,12 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 builder.CreateStore(new_cursor, cursor_ptr);
 
                 // ptls->gc_num.allocd += osize;
-                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
-                auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
-                auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
-                auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
-                auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
-                builder.CreateStore(pool_allocd_total, pool_alloc_tls);
+                // auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
+                // auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
+                // auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
+                // auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
+                // auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
+                // builder.CreateStore(pool_allocd_total, pool_alloc_tls);
 
                 auto v_raw = builder.CreateNSWAdd(result, ConstantInt::get(Type::getInt64Ty(target->getContext()), sizeof(jl_taggedvalue_t)));
                 auto v_as_ptr = builder.CreateIntToPtr(v_raw, poolAllocFunc->getReturnType());
@@ -321,14 +316,14 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 phiNode->addIncoming(new_call, slowpath);
                 phiNode->addIncoming(v_as_ptr, fastpath);
                 phiNode->takeName(target);
-
+                
                 target->replaceAllUsesWith(phiNode);
-                target->eraseFromParent();
                 return;
             } else {
                 auto pool_offs = ConstantInt::get(Type::getInt32Ty(F.getContext()), 1);
                 newI = builder.CreateCall(poolAllocFunc, { ptls, pool_offs, pool_osize_i32, type });
-                derefBytes = sizeof(void*);
+                if (sz > 0)
+                    derefBytes = sz;
             }
         #endif // MMTK_GC
         }
@@ -346,7 +341,6 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
         newI->addDereferenceableRetAttr(derefBytes);
     newI->takeName(target);
     target->replaceAllUsesWith(newI);
-    target->eraseFromParent();
 }
 
 bool FinalLowerGC::runOnFunction(Function &F)
@@ -372,21 +366,23 @@ bool FinalLowerGC::runOnFunction(Function &F)
 
     // Lower all calls to supported intrinsics.
     for (auto &BB : F) {
-        for (auto &I : make_early_inc_range(BB)) {
-            auto *CI = dyn_cast<CallInst>(&I);
-            if (!CI)
+        for (auto it = BB.begin(); it != BB.end();) {
+            auto *CI = dyn_cast<CallInst>(&*it);
+            if (!CI) {
+                ++it;
                 continue;
+            }
 
             Value *callee = CI->getCalledOperand();
             assert(callee);
 
 #define LOWER_INTRINSIC(INTRINSIC, LOWER_INTRINSIC_FUNC) \
-            do { \
-                auto intrinsic = getOrNull(jl_intrinsics::INTRINSIC); \
-                if (intrinsic == callee) { \
-                    LOWER_INTRINSIC_FUNC(CI, F); \
-                } \
-            } while (0)
+            auto INTRINSIC = getOrNull(jl_intrinsics::INTRINSIC); \
+            if (INTRINSIC == callee) { \
+                LOWER_INTRINSIC_FUNC(CI, F); \
+                it = CI->eraseFromParent(); \
+                continue; \
+            } \
 
             LOWER_INTRINSIC(newGCFrame, lowerNewGCFrame);
             LOWER_INTRINSIC(pushGCFrame, lowerPushGCFrame);
@@ -396,14 +392,13 @@ bool FinalLowerGC::runOnFunction(Function &F)
             LOWER_INTRINSIC(queueGCRoot, lowerQueueGCRoot);
             LOWER_INTRINSIC(safepoint, lowerSafepoint);
 
-
 #ifdef MMTK_GC
             LOWER_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
             LOWER_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
             LOWER_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
             LOWER_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
 #endif
-
+            ++it;
 
 #undef LOWER_INTRINSIC
         }

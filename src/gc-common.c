@@ -477,6 +477,20 @@ void jl_gc_track_malloced_genericmemory(jl_ptls_t ptls, jl_genericmemory_t *m, i
     ptls->gc_tls.heap.mallocarrays = ma;
 }
 
+JL_DLLEXPORT int64_t jl_gc_pool_live_bytes(void)
+{
+    int n_threads = jl_atomic_load_acquire(&jl_n_threads);
+    jl_ptls_t *all_tls_states = jl_atomic_load_relaxed(&jl_all_tls_states);
+    int64_t pool_live_bytes = 0;
+    for (int i = 0; i < n_threads; i++) {
+        jl_ptls_t ptls2 = all_tls_states[i];
+        if (ptls2 != NULL) {
+            pool_live_bytes += jl_atomic_load_relaxed(&ptls2->gc_tls.gc_num.pool_live_bytes);
+        }
+    }
+    return pool_live_bytes;
+}
+
 void jl_gc_count_allocd(size_t sz) JL_NOTSAFEPOINT
 {
     jl_ptls_t ptls = jl_current_task->ptls;
