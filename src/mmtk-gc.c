@@ -32,8 +32,16 @@ JL_DLLEXPORT void jl_gc_set_cb_notify_external_free(jl_gc_cb_notify_external_fre
 JL_DLLEXPORT void jl_gc_set_cb_notify_gc_pressure(jl_gc_cb_notify_gc_pressure_t cb, int enable)
 {
 }
+
+// mutex for page profile
+uv_mutex_t page_profile_lock;
+
 JL_DLLEXPORT void jl_gc_take_page_profile(ios_t *stream)
 {
+    uv_mutex_lock(&page_profile_lock);
+    const char *str = "Page profiler in unsupported in MMTk.";
+    ios_write(stream, str, strlen(str));
+    uv_mutex_unlock(&page_profile_lock);
 }
 
 JL_DLLEXPORT double jl_gc_page_utilization_stats[JL_GC_N_MAX_POOLS];
