@@ -32,7 +32,23 @@ JL_DLLEXPORT void jl_gc_set_cb_notify_external_free(jl_gc_cb_notify_external_fre
 JL_DLLEXPORT void jl_gc_set_cb_notify_gc_pressure(jl_gc_cb_notify_gc_pressure_t cb, int enable)
 {
 }
+JL_DLLEXPORT void jl_gc_take_page_profile(ios_t *stream)
+{
+}
 
+JL_DLLEXPORT double jl_gc_page_utilization_stats[JL_GC_N_MAX_POOLS];
+
+STATIC_INLINE void gc_dump_page_utilization_data(void) JL_NOTSAFEPOINT
+{
+    // FIXME: MMTk would have to provide its own stats
+}
+
+#define MMTK_GC_PAGE_SZ (1 << 12) // MMTk's page size is defined in mmtk-core constants
+
+JL_DLLEXPORT uint64_t jl_get_pg_size(void)
+{
+    return MMTK_GC_PAGE_SZ;
+}
 
 inline void maybe_collect(jl_ptls_t ptls)
 {
@@ -271,6 +287,10 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     mmtk_post_bind_mutator(&ptls->mmtk_mutator, mmtk_mutator);
 }
 
+void jl_free_thread_gc_state(jl_ptls_t ptls)
+{
+}
+
 void jl_deinit_thread_heap(jl_ptls_t ptls)
 {
     mmtk_destroy_mutator(&ptls->mmtk_mutator);
@@ -380,24 +400,26 @@ JL_DLLEXPORT void *jl_gc_counted_malloc(size_t sz)
 {
     jl_gcframe_t **pgcstack = jl_get_pgcstack();
     jl_task_t *ct = jl_current_task;
-    if (pgcstack && ct->world_age) {
+    void *data = malloc(sz);
+    if (data != NULL && pgcstack != NULL && ct->world_age) {
         jl_ptls_t ptls = ct->ptls;
         malloc_maybe_collect(ptls, sz);
         jl_atomic_fetch_add_relaxed(&JULIA_MALLOC_BYTES, sz);
     }
-    return malloc(sz);
+    return data;
 }
 
 JL_DLLEXPORT void *jl_gc_counted_calloc(size_t nm, size_t sz)
 {
     jl_gcframe_t **pgcstack = jl_get_pgcstack();
     jl_task_t *ct = jl_current_task;
-    if (pgcstack && ct->world_age) {
+    void *data = calloc(nm, sz);
+    if (data != NULL && pgcstack != NULL && ct->world_age) {
         jl_ptls_t ptls = ct->ptls;
         malloc_maybe_collect(ptls, nm * sz);
         jl_atomic_fetch_add_relaxed(&JULIA_MALLOC_BYTES, nm * sz);
     }
-    return calloc(nm, sz);
+    return data;
 }
 
 JL_DLLEXPORT void jl_gc_counted_free_with_size(void *p, size_t sz)
@@ -405,7 +427,7 @@ JL_DLLEXPORT void jl_gc_counted_free_with_size(void *p, size_t sz)
     jl_gcframe_t **pgcstack = jl_get_pgcstack();
     jl_task_t *ct = jl_current_task;
     free(p);
-    if (pgcstack && ct->world_age) {
+    if (pgcstack != NULL && ct->world_age) {
         jl_atomic_fetch_add_relaxed(&JULIA_MALLOC_BYTES, -sz);
     }
 }

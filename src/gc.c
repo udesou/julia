@@ -3345,6 +3345,18 @@ void jl_deinit_thread_heap(jl_ptls_t ptls)
     // Do nothing
 }
 
+void jl_free_thread_gc_state(jl_ptls_t ptls)
+{
+    jl_gc_markqueue_t *mq = &ptls->gc_tls.mark_queue;
+    ws_queue_t *cq = &mq->chunk_queue;
+    free_ws_array(jl_atomic_load_relaxed(&cq->array));
+    jl_atomic_store_relaxed(&cq->array, NULL);
+    ws_queue_t *q = &mq->ptr_queue;
+    free_ws_array(jl_atomic_load_relaxed(&q->array));
+    jl_atomic_store_relaxed(&q->array, NULL);
+    arraylist_free(&mq->reclaim_set);
+}
+
 // System-wide initializations
 void jl_gc_init(void)
 {

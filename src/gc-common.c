@@ -525,18 +525,6 @@ void jl_gc_free_memory(jl_value_t *v, int isaligned) JL_NOTSAFEPOINT
     gc_num.freecall++;
 }
 
-void jl_free_thread_gc_state(jl_ptls_t ptls)
-{
-    jl_gc_markqueue_t *mq = &ptls->gc_tls.mark_queue;
-    ws_queue_t *cq = &mq->chunk_queue;
-    free_ws_array(jl_atomic_load_relaxed(&cq->array));
-    jl_atomic_store_relaxed(&cq->array, NULL);
-    ws_queue_t *q = &mq->ptr_queue;
-    free_ws_array(jl_atomic_load_relaxed(&q->array));
-    jl_atomic_store_relaxed(&q->array, NULL);
-    arraylist_free(&mq->reclaim_set);
-}
-
 // GCNum, statistics manipulation
 // ---
 // Only safe to update the heap inside the GC
@@ -640,6 +628,16 @@ JL_DLLEXPORT int jl_gc_is_enabled(void)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
     return !ptls->disable_gc;
+}
+
+int gc_logging_enabled = 0;
+
+JL_DLLEXPORT void jl_enable_gc_logging(int enable) {
+    gc_logging_enabled = enable;
+}
+
+JL_DLLEXPORT int jl_is_gc_logging_enabled(void) {
+    return gc_logging_enabled;
 }
 
 JL_DLLEXPORT void jl_gc_get_total_bytes(int64_t *bytes) JL_NOTSAFEPOINT

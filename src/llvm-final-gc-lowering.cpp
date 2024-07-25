@@ -302,12 +302,12 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 builder.CreateStore(new_cursor, cursor_ptr);
 
                 // ptls->gc_num.allocd += osize;
-                // auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
-                // auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
-                // auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
-                // auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
-                // auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
-                // builder.CreateStore(pool_allocd_total, pool_alloc_tls);
+                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
+                auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
+                auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
+                auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);
+                auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
+                builder.CreateStore(pool_allocd_total, pool_alloc_tls);
 
                 auto v_raw = builder.CreateNSWAdd(result, ConstantInt::get(Type::getInt64Ty(target->getContext()), sizeof(jl_taggedvalue_t)));
                 auto v_as_ptr = builder.CreateIntToPtr(v_raw, poolAllocFunc->getReturnType());
@@ -316,7 +316,7 @@ void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
                 phiNode->addIncoming(new_call, slowpath);
                 phiNode->addIncoming(v_as_ptr, fastpath);
                 phiNode->takeName(target);
-                
+
                 target->replaceAllUsesWith(phiNode);
                 return;
             } else {
@@ -363,6 +363,13 @@ bool FinalLowerGC::runOnFunction(Function &F)
     bigAllocFunc = getOrDeclare(jl_well_known::GCBigAlloc);
     allocTypedFunc = getOrDeclare(jl_well_known::GCAllocTyped);
     T_size = F.getParent()->getDataLayout().getIntPtrType(F.getContext());
+
+#ifdef MMTK_GC
+    writeBarrier1Func = getOrDeclare(jl_well_known::GCWriteBarrier1);
+    writeBarrier2Func = getOrDeclare(jl_well_known::GCWriteBarrier2);
+    writeBarrier1SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier1Slow);
+    writeBarrier2SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier2Slow);
+#endif
 
     // Lower all calls to supported intrinsics.
     for (auto &BB : F) {

@@ -1142,16 +1142,6 @@ NOINLINE void gc_mark_loop_unwind(jl_ptls_t ptls, jl_gc_markqueue_t *mq, int off
 //     return (slot - start) / elsize;
 // }
 
-static int gc_logging_enabled = 0;
-
-JL_DLLEXPORT void jl_enable_gc_logging(int enable) {
-    gc_logging_enabled = enable;
-}
-
-JL_DLLEXPORT int jl_is_gc_logging_enabled(void) {
-    return gc_logging_enabled;
-}
-
 void _report_gc_finished(uint64_t pause, uint64_t freed, int full, int recollect, int64_t live_bytes) JL_NOTSAFEPOINT {
     if (!gc_logging_enabled) {
         return;
