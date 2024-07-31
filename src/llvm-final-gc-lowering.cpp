@@ -396,14 +396,24 @@ bool FinalLowerGC::runOnFunction(Function &F)
             LOWER_INTRINSIC(popGCFrame, lowerPopGCFrame);
             LOWER_INTRINSIC(getGCFrameSlot, lowerGetGCFrameSlot);
             LOWER_INTRINSIC(GCAllocBytes, lowerGCAllocBytes);
-            LOWER_INTRINSIC(queueGCRoot, lowerQueueGCRoot);
             LOWER_INTRINSIC(safepoint, lowerSafepoint);
 
+// These lowerings preserve the CI and do not erase them from the parent
+#define LOWER_WB_INTRINSIC(INTRINSIC, LOWER_INTRINSIC_FUNC) \
+            auto INTRINSIC = getOrNull(jl_intrinsics::INTRINSIC); \
+            if (INTRINSIC == callee) { \
+                LOWER_INTRINSIC_FUNC(CI, F); \
+                ++it; \
+                continue; \
+            } \
+
+            LOWER_WB_INTRINSIC(queueGCRoot, lowerQueueGCRoot);
+
 #ifdef MMTK_GC
-            LOWER_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
-            LOWER_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
-            LOWER_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
-            LOWER_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
+            LOWER_WB_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
+            LOWER_WB_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
+            LOWER_WB_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
+            LOWER_WB_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
 #endif
             ++it;
 
