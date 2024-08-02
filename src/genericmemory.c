@@ -54,6 +54,7 @@ jl_genericmemory_t *_new_genericmemory_(jl_value_t *mtype, size_t nel, int8_t is
         tot = sizeof(jl_genericmemory_t) + sizeof(void*);
     }
     m = (jl_genericmemory_t*)jl_gc_alloc(ct->ptls, tot, mtype);
+    PTR_PIN(m);
 
     if (pooled) {
         data = (char*)m + JL_SMALL_BYTE_ALIGNMENT;
@@ -107,9 +108,11 @@ JL_DLLEXPORT jl_genericmemory_t *jl_string_to_genericmemory(jl_value_t *str)
     jl_task_t *ct = jl_current_task;
     int tsz = sizeof(jl_genericmemory_t) + sizeof(void*);
     jl_genericmemory_t *m = (jl_genericmemory_t*)jl_gc_alloc(ct->ptls, tsz, jl_memory_uint8_type);
+    PTR_PIN(m);
     m->length = jl_string_len(str);
     m->ptr = jl_string_data(str);
     jl_genericmemory_data_owner_field(m) = str;
+    PTR_PIN(str);
     return m;
 }
 
@@ -160,6 +163,7 @@ JL_DLLEXPORT jl_genericmemory_t *jl_ptr_to_genericmemory(jl_value_t *mtype, void
         jl_exceptionf(jl_argumenterror_type, "invalid GenericMemory size: too large for system address width");
     int tsz = sizeof(jl_genericmemory_t) + sizeof(void*);
     m = (jl_genericmemory_t*)jl_gc_alloc(ct->ptls, tsz, mtype);
+    PTR_PIN(m);
     m->ptr = data;
     m->length = nel;
     jl_genericmemory_data_owner_field(m) = own_buffer ? (jl_value_t*)m : NULL;
@@ -249,9 +253,11 @@ JL_DLLEXPORT jl_genericmemory_t *jl_genericmemory_slice(jl_genericmemory_t *mem,
     }
     jl_task_t *ct = jl_current_task;
     jl_genericmemory_t *newmem = (jl_genericmemory_t*)jl_gc_alloc(ct->ptls, sizeof(jl_genericmemory_t) + sizeof(void*), dt);
+    PTR_PIN(newmem);
     newmem->length = len;
     newmem->ptr = data;
     jl_genericmemory_data_owner_field(newmem) = jl_genericmemory_owner(mem);
+    PTR_PIN(jl_genericmemory_owner(mem));
     return newmem;
 }
 
