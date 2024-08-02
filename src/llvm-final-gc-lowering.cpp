@@ -418,6 +418,7 @@ bool FinalLowerGC::runOnFunction(Function &F)
             ++it;
 
 #undef LOWER_INTRINSIC
+#undef LOWER_WB_INTRINSIC
         }
     }
 
