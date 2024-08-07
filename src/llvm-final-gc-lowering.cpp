@@ -315,10 +315,10 @@ bool FinalLowerGC::runOnFunction(Function &F)
             LOWER_INTRINSIC(safepoint, lowerSafepoint);
 
 #ifdef MMTK_GC
-            LOWER_INTRINSIC(writeBarrier1, lowerNewGCFrame);
-            LOWER_INTRINSIC(writeBarrier2, lowerNewGCFrame);
-            LOWER_INTRINSIC(writeBarrier1Slow, lowerNewGCFrame);
-            LOWER_INTRINSIC(writeBarrier2Slow, lowerNewGCFrame);
+            LOWER_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
+            LOWER_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
+            LOWER_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
+            LOWER_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
 #endif
 
 #undef LOWER_INTRINSIC
