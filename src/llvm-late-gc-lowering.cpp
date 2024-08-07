@@ -363,7 +363,7 @@ private:
     Value *EmitLoadTag(IRBuilder<> &builder, Type *T_size, Value *V);
 
 #ifdef MMTK_GC
-    Value* lowerGCAllocBytesLate(CallInst *target, Function &F);
+    Value* lowerGCAllocBytesLate(CallInst *target, Function &F, State &S);
 #endif
 };
 
@@ -2655,7 +2655,11 @@ bool LateLowerGCFrame::CleanupIR(Function &F, State *S, bool *CFGModified) {
                     // object_reference_write_slow_call((void*) src, (void*) slot, (void*) target);
                     MDBuilder MDB(F.getContext());
                     SmallVector<uint32_t, 2> Weights{1, 9};
-                    auto mayTriggerSlowpath = SplitBlockAndInsertIfThen(is_unlogged, CI, false, MDB.createBranchWeights(Weights));
+                    if (!S->DT) {
+                        S->DT = &GetDT();
+                    }
+                    DomTreeUpdater dtu = DomTreeUpdater(S->DT, llvm::DomTreeUpdater::UpdateStrategy::Lazy);
+                    auto mayTriggerSlowpath = SplitBlockAndInsertIfThen(is_unlogged, CI, false, MDB.createBranchWeights(Weights), &dtu);
                     builder.SetInsertPoint(mayTriggerSlowpath);
                     builder.CreateCall(getOrDeclare(jl_intrinsics::writeBarrier1Slow), { parent });
                 } else {
@@ -2886,7 +2890,7 @@ void LateLowerGCFrame::PlaceRootsAndUpdateCalls(SmallVectorImpl<int> &Colors, St
     }
 }
 
-Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
+Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F, State &S)
 {
     assert(target->arg_size() == 3);
 
@@ -2939,7 +2943,10 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
                 auto fastpath = BasicBlock::Create(target->getContext(), "fastpath", target->getFunction());
 
                 auto next_instr = target->getNextNode();
-                DomTreeUpdater dtu = DomTreeUpdater(&GetDT(), llvm::DomTreeUpdater::UpdateStrategy::Lazy);
+                if (!S.DT) {
+                    S.DT = &GetDT();
+                }
+                DomTreeUpdater dtu = DomTreeUpdater(S.DT, llvm::DomTreeUpdater::UpdateStrategy::Lazy);
                 MDBuilder MDB(F.getContext());
                 SmallVector<uint32_t, 2> Weights{1, 9};
                 SplitBlockAndInsertIfThenElse(gt_limit, next_instr, &slowpath, &fastpath, false, false, MDB.createBranchWeights(Weights), &dtu);
@@ -3028,7 +3035,7 @@ bool LateLowerGCFrame::runOnFunction(Function &F, bool *CFGModified) {
 
             auto GCAllocBytes = getOrNull(jl_intrinsics::GCAllocBytes);
             if (GCAllocBytes == callee) {
-                replaceInstruction(CI, lowerGCAllocBytesLate(CI, F), it);
+                replaceInstruction(CI, lowerGCAllocBytesLate(CI, F, S), it);
                 continue;
             }
             ++it;
