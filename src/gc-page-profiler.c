@@ -3,6 +3,7 @@
 #ifndef MMTK_GC
 
 #include "gc-page-profiler.h"
+#include "julia.h"
 
 #ifdef __cplusplus
 extern "C" {

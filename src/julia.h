@@ -3,24 +3,6 @@
 #ifndef JULIA_H
 #define JULIA_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern int mmtk_object_is_managed_by_mmtk(void* addr);
-extern unsigned char mmtk_pin_object(void* obj);
-// FIXME: Pinning objects that get hashed in the ptrhash table
-// until we implement address space hashing.
-#ifdef MMTK_GC
-#define PTRHASH_PIN(key) mmtk_pin_object(key);
-#else
-#define PTRHASH_PIN(key)
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
 #if defined(JL_LIBRARY_EXPORTS_INTERNAL) || defined(JL_LIBRARY_EXPORTS_CODEGEN)
 #define JL_LIBRARY_EXPORTS
 #endif
@@ -45,22 +27,10 @@ extern unsigned char mmtk_pin_object(void* obj);
 
 #include <setjmp.h>
 #ifndef _OS_WINDOWS_
-#  define jl_jmp_buf sigjmp_buf
-#  if defined(_CPU_ARM_) || defined(_CPU_PPC_) || defined(_CPU_WASM_)
-#    define MAX_ALIGN 8
-#  elif defined(_CPU_AARCH64_)
-// int128 is 16 bytes aligned on aarch64
-#    define MAX_ALIGN 16
-#  elif defined(_P64)
-// Generically we assume MAX_ALIGN is sizeof(void*)
-#    define MAX_ALIGN 8
-#  else
-#    define MAX_ALIGN 4
-#  endif
+    #define jl_jmp_buf sigjmp_buf
 #else
-#  include "win32_ucontext.h"
-#  define jl_jmp_buf jmp_buf
-#  define MAX_ALIGN 8
+    #include "win32_ucontext.h"
+    #define jl_jmp_buf jmp_buf
 #endif
 
 // Define the largest size (bytes) of a properly aligned object that the
@@ -100,6 +70,7 @@ typedef struct _jl_tls_states_t *jl_ptls_t;
 #ifdef JL_LIBRARY_EXPORTS
 #include "uv.h"
 #endif
+#include "gc-interface.h"
 #include "julia_atomics.h"
 #include "julia_threads.h"
 #include "julia_assert.h"
@@ -300,11 +271,12 @@ typedef union __jl_purity_overrides_t {
         uint16_t ipo_noub                : 1;
         uint16_t ipo_noub_if_noinbounds  : 1;
         uint16_t ipo_consistent_overlay  : 1;
+        uint16_t ipo_nortcall            : 1;
     } overrides;
     uint16_t bits;
 } _jl_purity_overrides_t;
 
-#define NUM_EFFECTS_OVERRIDES 10
+#define NUM_EFFECTS_OVERRIDES 11
 #define NUM_IR_FLAGS 13
 
 // This type describes a single function body
@@ -317,16 +289,15 @@ typedef struct _jl_code_info_t {
         // 1 << 0 = inbounds region
         // 1 << 1 = callsite inline region
         // 1 << 2 = callsite noinline region
-        // 1 << 3 = throw block
-        // 1 << 4 = refined statement
-        // 1 << 5 = :consistent
-        // 1 << 6 = :effect_free
-        // 1 << 7 = :nothrow
-        // 1 << 8 = :terminates
-        // 1 << 9 = :noub
-        // 1 << 10 = :effect_free_if_inaccessiblememonly
-        // 1 << 11 = :inaccessiblemem_or_argmemonly
-        // 1 << 12-19 = callsite effects overrides
+        // 1 << 3 = refined statement
+        // 1 << 4 = :consistent
+        // 1 << 5 = :effect_free
+        // 1 << 6 = :nothrow
+        // 1 << 7 = :terminates
+        // 1 << 8 = :noub
+        // 1 << 9 = :effect_free_if_inaccessiblememonly
+        // 1 << 10 = :inaccessiblemem_or_argmemonly
+        // 1 << 11-19 = callsite effects overrides
     // miscellaneous data:
     jl_array_t *slotnames; // names of local variables
     jl_array_t *slotflags;  // local var bit flags
@@ -549,6 +520,7 @@ typedef struct {
     uint8_t mayinlinealloc:1;
     uint8_t _reserved:5;
     uint8_t max_methods; // override for inference's max_methods setting (0 = no additional limit or relaxation)
+    uint8_t constprop_heustic; // override for inference's constprop heuristic
 } jl_typename_t;
 
 typedef struct {
@@ -810,7 +782,7 @@ static inline jl_value_t *jl_to_typeof(uintptr_t t)
     return (jl_value_t*)t;
 }
 #else
-extern JL_DLLEXPORT jl_datatype_t *ijl_small_typeof[(jl_max_tags << 4) / sizeof(jl_datatype_t*)];
+extern JL_HIDDEN jl_datatype_t *ijl_small_typeof[(jl_max_tags << 4) / sizeof(jl_datatype_t*)];
 static inline jl_value_t *jl_to_typeof(uintptr_t t)
 {
     if (t < (jl_max_tags << 4))
@@ -1064,37 +1036,15 @@ extern void JL_GC_POP() JL_NOTSAFEPOINT;
 
 #endif
 
-JL_DLLEXPORT int jl_gc_enable(int on);
-JL_DLLEXPORT int jl_gc_is_enabled(void);
-
-typedef enum {
-    JL_GC_AUTO = 0,         // use heuristics to determine the collection type
-    JL_GC_FULL = 1,         // force a full collection
-    JL_GC_INCREMENTAL = 2,  // force an incremental collection
-} jl_gc_collection_t;
-
-JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t);
-
 JL_DLLEXPORT void jl_gc_add_finalizer(jl_value_t *v, jl_function_t *f) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_add_ptr_finalizer(jl_ptls_t ptls, jl_value_t *v, void *f) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_gc_add_quiescent(jl_ptls_t ptls, void **v, void *f) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_finalize(jl_value_t *o);
-JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref(jl_value_t *value);
-JL_DLLEXPORT jl_value_t *jl_gc_allocobj(size_t sz);
 JL_DLLEXPORT void *jl_malloc_stack(size_t *bufsz, struct _jl_task_t *owner) JL_NOTSAFEPOINT;
 JL_DLLEXPORT void jl_free_stack(void *stkbuf, size_t bufsz);
-JL_DLLEXPORT void jl_gc_use(jl_value_t *a);
-// Set GC memory trigger in bytes for greedy memory collecting
-JL_DLLEXPORT void jl_gc_set_max_memory(uint64_t max_mem);
-JL_DLLEXPORT uint64_t jl_gc_get_max_memory(void);
-
-JL_DLLEXPORT void jl_clear_malloc_data(void);
 
 // GC write barriers
-JL_DLLEXPORT void jl_gc_queue_root(const jl_value_t *root) JL_NOTSAFEPOINT;
-JL_DLLEXPORT void jl_gc_queue_multiroot(const jl_value_t *root, const void *stored, jl_datatype_t *dt) JL_NOTSAFEPOINT;
 
-#ifndef MMTK_GC
 STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     // parent and ptr isa jl_value_t*
@@ -1125,26 +1075,6 @@ STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_
         jl_gc_queue_multiroot((jl_value_t*)parent, ptr, dt);
 }
 
-#else  // MMTK_GC
-STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT;
-
-STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    mmtk_gc_wb(parent, ptr);
-}
-
-STATIC_INLINE void jl_gc_wb_back(const void *ptr) JL_NOTSAFEPOINT // ptr isa jl_value_t*
-{
-    mmtk_gc_wb(ptr, (void*)0);
-}
-
-STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
-{
-    mmtk_gc_wb(parent, (void*)0);
-}
-#endif // MMTK_GC
-
-JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz);
 JL_DLLEXPORT void jl_gc_safepoint(void);
 JL_DLLEXPORT int jl_safepoint_suspend_thread(int tid, int waitstate);
 JL_DLLEXPORT void jl_safepoint_suspend_all_threads(struct _jl_task_t *ct);
@@ -2640,106 +2570,6 @@ extern JL_DLLEXPORT int jl_default_debug_info_kind;
 typedef struct {
     int emit_metadata;
 } jl_emission_params_t;
-
-#ifdef MMTK_GC
-extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
-extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
-extern void* mmtk_alloc(void* mutator, size_t size, size_t align, size_t offset, int allocator);
-
-extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
-
-// These need to be constants.
-
-#define MMTK_OBJECT_BARRIER (1)
-// Stickyimmix needs write barrier. Immix does not need write barrier.
-#ifdef MMTK_PLAN_IMMIX
-#define MMTK_NEEDS_WRITE_BARRIER (0)
-#endif
-#ifdef MMTK_PLAN_STICKYIMMIX
-#define MMTK_NEEDS_WRITE_BARRIER (1)
-#endif
-
-#define MMTK_DEFAULT_IMMIX_ALLOCATOR (0)
-#define MMTK_IMMORTAL_BUMP_ALLOCATOR (0)
-
-// Directly call into MMTk for write barrier (debugging only)
-STATIC_INLINE void mmtk_gc_wb_full(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    jl_task_t *ct = jl_current_task;
-    jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_post(&ptls->mmtk_mutator, parent, ptr);
-}
-
-// Inlined fastpath
-STATIC_INLINE void mmtk_gc_wb_fast(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) (void*) parent;
-        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        intptr_t shift = (addr >> 3) & 0b111;
-        uint8_t byte_val = *meta_addr;
-        if (((byte_val >> shift) & 1) == 1) {
-            jl_task_t *ct = jl_current_task;
-            jl_ptls_t ptls = ct->ptls;
-            mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, ptr);
-        }
-    }
-}
-
-STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    mmtk_gc_wb_fast(parent, ptr);
-}
-
-#define MMTK_MIN_ALIGNMENT 4
-// MMTk assumes allocation size is aligned to min alignment.
-STATIC_INLINE size_t mmtk_align_alloc_sz(size_t sz) JL_NOTSAFEPOINT
-{
-    return (sz + MMTK_MIN_ALIGNMENT - 1) & ~(MMTK_MIN_ALIGNMENT - 1);
-}
-
-STATIC_INLINE void* bump_alloc_fast(MMTkMutatorContext* mutator, uintptr_t* cursor, uintptr_t limit, size_t size, size_t align, size_t offset, int allocator) {
-    intptr_t delta = (-offset - *cursor) & (align - 1);
-    uintptr_t result = *cursor + (uintptr_t)delta;
-
-    if (__unlikely(result + size > limit)) {
-        return (void*) mmtk_alloc(mutator, size, align, offset, allocator);
-    } else{
-        *cursor = result + size;
-        return (void*)result;
-    }
-}
-
-STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
-    ImmixAllocator* allocator = &mutator->allocators.immix[MMTK_DEFAULT_IMMIX_ALLOCATOR];
-    return bump_alloc_fast(mutator, (uintptr_t*)&allocator->cursor, (intptr_t)allocator->limit, size, align, offset, 0);
-}
-
-STATIC_INLINE void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // We do not need post alloc for immix objects in immix/stickyimmix
-}
-
-STATIC_INLINE void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
-    BumpAllocator* allocator = &mutator->allocators.bump_pointer[MMTK_IMMORTAL_BUMP_ALLOCATOR];
-    return bump_alloc_fast(mutator, (uintptr_t*)&allocator->cursor, (uintptr_t)allocator->limit, size, align, offset, 1);
-}
-
-STATIC_INLINE void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) obj;
-        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        intptr_t shift = (addr >> 3) & 0b111;
-        while(1) {
-            uint8_t old_val = *meta_addr;
-            uint8_t new_val = old_val | (1 << shift);
-            if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
-                break;
-            }
-        }
-    }
-}
-
-#endif
 
 #ifdef __cplusplus
 }

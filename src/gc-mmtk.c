@@ -2,7 +2,7 @@
 
 #ifdef MMTK_GC
 
-#include "gc.h"
+#include "gc-common.h"
 #include "mmtk_julia.h"
 #include "julia_gcext.h"
 

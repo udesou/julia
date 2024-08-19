@@ -745,6 +745,9 @@ JL_DLLEXPORT void julia_init(JL_IMAGE_SEARCH rel)
     // Make sure we finalize the tls callback before starting any threads.
     (void)jl_get_pgcstack();
 
+    // initialize symbol-table lock
+    uv_mutex_init(&symtab_lock);
+
     // initialize backtraces
     jl_init_profile_lock();
 #ifdef _OS_WINDOWS_
@@ -885,6 +888,8 @@ static NOINLINE void _finish_julia_init(JL_IMAGE_SEARCH rel, jl_ptls_t ptls, jl_
         post_image_load_hooks();
     }
     jl_start_threads();
+    jl_start_gc_threads();
+    uv_barrier_wait(&thread_init_done);
 
 #ifdef MMTK_GC
     mmtk_initialize_collection((void *)ptls);
