@@ -1,5 +1,5 @@
 // This file is a part of Julia. License is MIT: https://julialang.org/license
-
+#ifndef MMTK_GC
 #include "gc-common.h"
 #include "gc-stock.h"
 #include "gc-alloc-profiler.h"
@@ -405,7 +405,6 @@ static void sweep_weak_refs(void)
     }
 }
 
-
 STATIC_INLINE void jl_batch_accum_heap_size(jl_ptls_t ptls, uint64_t sz) JL_NOTSAFEPOINT
 {
     uint64_t alloc_acc = jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.alloc_acc) + sz;
@@ -452,7 +451,6 @@ STATIC_INLINE jl_value_t *jl_gc_big_alloc_inner(jl_ptls_t ptls, size_t sz)
     gc_big_object_link(ptls->gc_tls.heap.young_generation_of_bigvals, v);
     return jl_valueof(&v->header);
 }
-
 
 // Instrumented version of jl_gc_big_alloc_inner, called into by LLVM-generated code.
 JL_DLLEXPORT jl_value_t *jl_gc_big_alloc(jl_ptls_t ptls, size_t sz, jl_value_t *type)
@@ -3888,12 +3886,22 @@ JL_DLLEXPORT size_t jl_gc_external_obj_hdr_size(void)
     return sizeof(bigval_t);
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> c48a701f54 (WIP: Adding support for MMTk/Immix)
 JL_DLLEXPORT void jl_gc_schedule_foreign_sweepfunc(jl_ptls_t ptls, jl_value_t *obj)
 {
     arraylist_push(&ptls->gc_tls.sweep_objs, obj);
 }
 
+void jl_gc_notify_image_load(const char* img_data, size_t len)
+{
+    // Do nothing
+}
+
 #ifdef __cplusplus
 }
 #endif
+
+#endif // !MMTK_GC

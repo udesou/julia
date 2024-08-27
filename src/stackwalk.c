@@ -1294,6 +1294,8 @@ JL_DLLEXPORT void jl_print_backtrace(void) JL_NOTSAFEPOINT
 }
 
 extern int gc_first_tid;
+extern int gc_is_parallel_collector_thread(int tid) JL_NOTSAFEPOINT;
+extern int gc_is_concurrent_collector_thread(int tid) JL_NOTSAFEPOINT;
 
 // Print backtraces for all live tasks, for all threads, to jl_safe_printf stderr
 JL_DLLEXPORT void jl_print_task_backtraces(int show_done) JL_NOTSAFEPOINT

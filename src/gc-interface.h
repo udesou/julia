@@ -192,6 +192,9 @@ JL_DLLEXPORT void *jl_gc_perm_alloc(size_t sz, int zero, unsigned align,
 // object being allocated and will be used to set the object header.
 struct _jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT;
 
+// FIXME: add description here
+void jl_gc_notify_image_load(const char* img_data, size_t len);
+
 // ========================================================================= //
 // Runtime Write-Barriers
 // ========================================================================= //
