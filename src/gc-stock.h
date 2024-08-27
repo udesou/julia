@@ -5,6 +5,7 @@
   . non-moving, precise mark and sweep collector
   . pool-allocates small objects, keeps big objects on a simple list
 */
+#ifndef MMTK_GC
 
 #ifndef JL_GC_H
 #define JL_GC_H
@@ -105,12 +106,6 @@ JL_EXTENSION typedef struct _bigval_t {
     };
     // must be 64-byte aligned here, in 32 & 64 bit modes
 } bigval_t;
-
-// data structure for tracking malloc'd genericmemory.
-typedef struct _mallocmemory_t {
-    jl_genericmemory_t *a; // lowest bit is tagged if this is aligned memory
-    struct _mallocmemory_t *next;
-} mallocmemory_t;
 
 // pool page metadata
 typedef struct _jl_gc_pagemeta_t {
@@ -718,3 +713,5 @@ void _report_gc_finished(uint64_t pause, uint64_t freed, int full, int recollect
 #endif
 
 #endif
+
+#endif // !MMTK_GC

@@ -4,7 +4,11 @@
 #ifndef JL_THREADS_H
 #define JL_THREADS_H
 
+#ifndef MMTK_GC
 #include "gc-tls.h"
+#else
+#include "gc-tls-mmtk.h"
+#endif
 #include "julia_atomics.h"
 #ifndef _OS_WINDOWS_
 #include "pthread.h"
