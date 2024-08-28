@@ -3893,6 +3893,7 @@ JL_DLLEXPORT size_t jl_gc_external_obj_hdr_size(void)
 <<<<<<< HEAD
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> c48a701f54 (WIP: Adding support for MMTk/Immix)
 =======
@@ -3900,6 +3901,8 @@ JL_DLLEXPORT size_t jl_gc_external_obj_hdr_size(void)
 =======
 
 >>>>>>> 30ac6f081d (Fixing removed newlines)
+=======
+>>>>>>> 2efcdf8335 (Refactoring to be considered before adding MMTk)
 JL_DLLEXPORT void jl_gc_schedule_foreign_sweepfunc(jl_ptls_t ptls, jl_value_t *obj)
 {
     arraylist_push(&ptls->gc_tls.sweep_objs, obj);
