@@ -9,6 +9,8 @@
 extern "C" {
 #endif
 
+// This mostly remove some fields that are not used by MMTk
+
 typedef struct {
     // variable for tracking weak references
     small_arraylist_t weak_refs;

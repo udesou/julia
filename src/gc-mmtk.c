@@ -10,9 +10,10 @@
 extern "C" {
 #endif
 
-// For now we're using the same values as stock-gc. However
-// for the heap size we use 70% of the free memory available
-// since that is actually a hard limit in MMTk.
+// FIXME: Should the values below be shared between both GC's?
+// Note that MMTk uses a hard max heap limit, which is set by default
+// as 70% of the free available memory. The min heap is set as the
+// default_collect_interval variable below.
 
 // max_total_memory is a suggestion.  We try very hard to stay
 // under this limit, but we will go above it rather than halting.
@@ -33,7 +34,6 @@ static memsize_t max_total_memory = (memsize_t) MAX32HEAP;
 
 void jl_gc_init(void) {
     // TODO: use jl_options.heap_size_hint to set MMTk's fixed heap size? (see issue: https://github.com/mmtk/mmtk-julia/issues/167)
-
     JL_MUTEX_INIT(&finalizers_lock, "finalizers_lock");
 
     arraylist_new(&to_finalize, 0);
@@ -105,10 +105,6 @@ void jl_gc_init(void) {
 void jl_start_gc_threads(void) {
     jl_ptls_t ptls = jl_current_task->ptls;
     mmtk_initialize_collection((void *)ptls);
-    // int nthreads = jl_atomic_load_relaxed(&jl_n_threads);
-    // int ngcthreads = jl_n_gcthreads;
-    // int nmutator_threads = nthreads - ngcthreads;
-    // printf("nthreads = %d, ngcthreads = %d, nmutator_threads = %d\n", nthreads, ngcthreads, nmutator_threads);
 }
 
 void jl_init_thread_heap(struct _jl_tls_states_t *ptls) JL_NOTSAFEPOINT {
@@ -135,38 +131,31 @@ void jl_free_thread_gc_state(struct _jl_tls_states_t *ptls) {
     mmtk_destroy_mutator(&ptls->gc_tls.mmtk_mutator);
 }
 
-// FIXME: mmtk uses the same code as stock to enable/disable the GC
-// Should this be moved to gc-common.c?
-
-_Atomic(uint32_t) jl_gc_disable_counter = 1;
-
-JL_DLLEXPORT int jl_gc_enable(int on) {
-    jl_ptls_t ptls = jl_current_task->ptls;
-    int prev = !ptls->disable_gc;
-    ptls->disable_gc = (on == 0);
-    if (on && !prev) {
-        // disable -> enable
-        if (jl_atomic_fetch_add(&jl_gc_disable_counter, -1) == 1) {
-            gc_num.allocd += gc_num.deferred_alloc;
-            gc_num.deferred_alloc = 0;
-        }
-    }
-    else if (prev && !on) {
-        // enable -> disable
-        jl_atomic_fetch_add(&jl_gc_disable_counter, 1);
-        // check if the GC is running and wait for it to finish
-        jl_gc_safepoint_(ptls);
-    }
-    return prev;
-}
-
-JL_DLLEXPORT int jl_gc_is_enabled(void) {
-    jl_ptls_t ptls = jl_current_task->ptls;
-    return !ptls->disable_gc;
-}
-
 JL_DLLEXPORT void jl_gc_set_max_memory(uint64_t max_mem) {
     // MMTk currently does not allow setting the heap size at runtime
+}
+
+
+inline void maybe_collect(jl_ptls_t ptls)
+{
+    // Just do a safe point for general maybe_collect
+    jl_gc_safepoint_(ptls);
+}
+
+// This is only used for malloc. We need to know if we need to do GC. However, keeping checking with MMTk (mmtk_gc_poll),
+// is expensive. So we only check for every few allocations.
+static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
+{
+    // We do not need to carefully maintain malloc_sz_since_last_poll. We just need to
+    // avoid using mmtk_gc_poll too frequently, and try to be precise on our heap usage
+    // as much as we can.
+    if (ptls->gc_tls.malloc_sz_since_last_poll > 4096) {
+        jl_atomic_store_relaxed(&ptls->gc_tls.malloc_sz_since_last_poll, 0);
+        mmtk_gc_poll(ptls);
+    } else {
+        jl_atomic_fetch_add_relaxed(&ptls->gc_tls.malloc_sz_since_last_poll, sz);
+        jl_gc_safepoint_(ptls);
+    }
 }
 
 JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection) {
@@ -182,7 +171,12 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection) {
     mmtk_handle_user_collection_request(ptls, collection);
 }
 
-// same as above, some of these are identical to the implementation in gc stock
+// FIXME: The functions combine_thread_gc_counts and reset_thread_gc_counts
+// are currently nearly identical for mmtk and for stock. However, the stats
+// are likely different (e.g., MMTk doesn't track the bytes allocated in the fastpath,
+// but only when the slowpath is called). We might need to adapt these later so that
+// the statistics are the same or as close as possible for each GC.
+
 static void combine_thread_gc_counts(jl_gc_num_t *dest, int update_heap) JL_NOTSAFEPOINT
 {
     int gc_n_threads;
@@ -228,37 +222,16 @@ void reset_thread_gc_counts(void) JL_NOTSAFEPOINT
     }
 }
 
-// weak references
-// ---
-JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value)
-{
-    jl_weakref_t *wr = (jl_weakref_t*)jl_gc_alloc(ptls, sizeof(void*), jl_weakref_type);
-    wr->value = value;  // NOTE: wb not needed here
-    mmtk_add_weak_candidate(wr);
-    return wr;
-}
-
-
-// allocation
-int jl_gc_classify_pools(size_t sz, int *osize)
-{
-    if (sz > GC_MAX_SZCLASS)
-        return -1; // call big alloc function
-    size_t allocsz = sz + sizeof(jl_taggedvalue_t);
-    *osize = LLT_ALIGN(allocsz, 16);
-    return 0; // use MMTk's fastpath logic
-}
-
-int64_t last_gc_total_bytes = 0;
-int64_t last_live_bytes = 0; // live_bytes at last collection
-int64_t live_bytes = 0;
-
 // Retrieves Julia's `GC_Num` (structure that stores GC statistics).
 JL_DLLEXPORT jl_gc_num_t jl_gc_num(void) {
     jl_gc_num_t num = gc_num;
     combine_thread_gc_counts(&num, 0);
     return num;
 }
+
+int64_t last_gc_total_bytes = 0;
+int64_t last_live_bytes = 0; // live_bytes at last collection
+int64_t live_bytes = 0;
 
 JL_DLLEXPORT int64_t jl_gc_diff_total_bytes(void) JL_NOTSAFEPOINT {
     int64_t oldtb = last_gc_total_bytes;
@@ -325,82 +298,38 @@ JL_DLLEXPORT uint64_t jl_gc_get_max_memory(void)
     return max_total_memory;
 }
 
+// weak references
+// ---
+JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *value)
+{
+    jl_weakref_t *wr = (jl_weakref_t*)jl_gc_alloc(ptls, sizeof(void*), jl_weakref_type);
+    wr->value = value;  // NOTE: wb not needed here
+    mmtk_add_weak_candidate(wr);
+    return wr;
+}
+
+// allocation
+
 extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
 extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
 extern void* mmtk_alloc(void* mutator, size_t size, size_t align, size_t offset, int allocator);
 extern void mmtk_post_alloc(void* mutator, void* refer, size_t bytes, int allocator);
-
-
 extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
 extern const void* MMTK_SIDE_VO_BIT_BASE_ADDRESS;
-
-// These need to be constants.
-
-#define MMTK_OBJECT_BARRIER (1)
-// Stickyimmix needs write barrier. Immix does not need write barrier.
-#ifdef MMTK_PLAN_IMMIX
-#define MMTK_NEEDS_WRITE_BARRIER (0)
-#endif
-#ifdef MMTK_PLAN_STICKYIMMIX
-#define MMTK_NEEDS_WRITE_BARRIER (1)
-#endif
-
-#ifdef MMTK_CONSERVATIVE_SCAN
-#define MMTK_NEEDS_VO_BIT (1)
-#else
-#define MMTK_NEEDS_VO_BIT (0)
-#endif
+extern void mmtk_store_obj_size_c(void* obj, size_t size);
 
 #define MMTK_DEFAULT_IMMIX_ALLOCATOR (0)
 #define MMTK_IMMORTAL_BUMP_ALLOCATOR (0)
 
-// Directly call into MMTk for write barrier (debugging only)
-inline void mmtk_gc_wb_full(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    jl_task_t *ct = jl_current_task;
-    jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_post(&ptls->gc_tls.mmtk_mutator, parent, ptr);
-}
 
-// Fastpath. Return 1 if we should go to slowpath
-inline int mmtk_gc_wb_fast_check(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+int jl_gc_classify_pools(size_t sz, int *osize)
 {
-    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) (void*) parent;
-        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        intptr_t shift = (addr >> 3) & 0b111;
-        uint8_t byte_val = *meta_addr;
-        return ((byte_val >> shift) & 1) == 1;
-    } else {
-        return 0;
-    }
+    if (sz > GC_MAX_SZCLASS)
+        return -1; // call big alloc function
+    size_t allocsz = sz + sizeof(jl_taggedvalue_t);
+    *osize = LLT_ALIGN(allocsz, 16);
+    return 0; // use MMTk's fastpath logic
 }
-
-// Slowpath.
-inline void mmtk_gc_wb_slow(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        jl_task_t *ct = jl_current_task;
-        jl_ptls_t ptls = ct->ptls;
-        mmtk_object_reference_write_slow(&ptls->gc_tls.mmtk_mutator, parent, ptr);
-    }
-}
-
-inline void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    if (mmtk_gc_wb_fast_check(parent, ptr)) {
-        mmtk_gc_wb_slow(parent, ptr);
-    }
-}
-
-inline void mmtk_gc_wb_binding(const void *bnd, const void *val) JL_NOTSAFEPOINT
-{
-    if (mmtk_gc_wb_fast_check(bnd, val)) {
-        jl_astaggedvalue(bnd)->bits.gc = 2; // to indicate that the buffer is a binding
-        mmtk_gc_wb_slow(bnd, val);
-    }
-}
-
 #define MMTK_MIN_ALIGNMENT 4
 // MMTk assumes allocation size is aligned to min alignment.
 inline size_t mmtk_align_alloc_sz(size_t sz) JL_NOTSAFEPOINT
@@ -429,19 +358,9 @@ inline void mmtk_immix_post_alloc_slow(MMTkMutatorContext* mutator, void* obj, s
     mmtk_post_alloc(mutator, obj, size, 0);
 }
 
-inline void mmtk_set_vo_bit(void* obj) {
-        intptr_t addr = (intptr_t) obj;
-        intptr_t shift = (addr >> 3) & 0b111;
-        uint8_t* vo_meta_addr = (uint8_t*) (MMTK_SIDE_VO_BIT_BASE_ADDRESS) + (addr >> 6);
-        uint8_t new_val = (*vo_meta_addr) | (1 << shift);
-        (*vo_meta_addr) = new_val;
-}
-
 inline void mmtk_immix_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    if (MMTK_NEEDS_VO_BIT) {
-        // set VO bit
-        mmtk_set_vo_bit(obj);
-    }
+    // FIXME: for now, we do nothing
+    // but when supporting moving, this is where we set the valid object (VO) bit
 }
 
 inline void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
@@ -450,79 +369,12 @@ inline void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, 
 }
 
 inline void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    if (MMTK_NEEDS_VO_BIT) {
-        // set VO bit
-        mmtk_set_vo_bit(obj);
-    }
-
-    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
-        intptr_t addr = (intptr_t) obj;
-        intptr_t shift = (addr >> 3) & 0b111;
-        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
-        while(1) {
-            uint8_t old_val = *meta_addr;
-            uint8_t new_val = old_val | (1 << shift);
-            if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
-                break;
-            }
-        }
-    }
-}
-
-// mutex for page profile
-uv_mutex_t page_profile_lock;
-
-JL_DLLEXPORT void jl_gc_take_page_profile(ios_t *stream)
-{
-    uv_mutex_lock(&page_profile_lock);
-    const char *str = "Page profiler in unsupported in MMTk.";
-    ios_write(stream, str, strlen(str));
-    uv_mutex_unlock(&page_profile_lock);
-}
-
-// this seems to be needed by the gc tests
-#define JL_GC_N_MAX_POOLS 51
-JL_DLLEXPORT double jl_gc_page_utilization_stats[JL_GC_N_MAX_POOLS];
-
-STATIC_INLINE void gc_dump_page_utilization_data(void) JL_NOTSAFEPOINT
-{
-    // FIXME: MMTk would have to provide its own stats
-}
-
-#define MMTK_GC_PAGE_SZ (1 << 12) // MMTk's page size is defined in mmtk-core constants
-
-JL_DLLEXPORT uint64_t jl_get_pg_size(void)
-{
-    return MMTK_GC_PAGE_SZ;
-}
-
-
-extern void mmtk_store_obj_size_c(void* obj, size_t size);
-
-inline void maybe_collect(jl_ptls_t ptls)
-{
-    // Just do a safe point for general maybe_collect
-    jl_gc_safepoint_(ptls);
-}
-
-// This is only used for malloc. We need to know if we need to do GC. However, keeping checking with MMTk (mmtk_gc_poll),
-// is expensive. So we only check for every few allocations.
-static inline void malloc_maybe_collect(jl_ptls_t ptls, size_t sz)
-{
-    // We do not need to carefully maintain malloc_sz_since_last_poll. We just need to
-    // avoid using mmtk_gc_poll too frequently, and try to be precise on our heap usage
-    // as much as we can.
-    if (ptls->gc_tls.malloc_sz_since_last_poll > 4096) {
-        jl_atomic_store_relaxed(&ptls->gc_tls.malloc_sz_since_last_poll, 0);
-        mmtk_gc_poll(ptls);
-    } else {
-        jl_atomic_fetch_add_relaxed(&ptls->gc_tls.malloc_sz_since_last_poll, sz);
-        jl_gc_safepoint_(ptls);
-    }
+    // FIXME: Similarly, for now, we do nothing
+    // but when supporting moving, this is where we set the valid object (VO) bit
+    // and log (old gen) bit
 }
 
 // allocation wrappers that track allocation and let collection run
-
 JL_DLLEXPORT void *jl_gc_counted_malloc(size_t sz)
 {
     jl_gcframe_t **pgcstack = jl_get_pgcstack();
@@ -601,7 +453,6 @@ jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
     return jl_valueof(o);
 }
 
-
 JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int osize, size_t align, void *ty)
 {
     // safepoint
@@ -626,11 +477,6 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int osize, siz
     ptls->gc_tls.gc_num.poolalloc++;
 
     return v;
-}
-
-void jl_gc_notify_image_load(const char* img_data, size_t len)
-{
-    mmtk_set_vm_space((void*)img_data, len);
 }
 
 JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t sz)
@@ -735,6 +581,38 @@ JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz)
     return b;
 }
 
+void jl_gc_notify_image_load(const char* img_data, size_t len)
+{
+    mmtk_set_vm_space((void*)img_data, len);
+}
+
+// mutex for page profile
+uv_mutex_t page_profile_lock;
+
+JL_DLLEXPORT void jl_gc_take_page_profile(ios_t *stream)
+{
+    uv_mutex_lock(&page_profile_lock);
+    const char *str = "Page profiler in unsupported in MMTk.";
+    ios_write(stream, str, strlen(str));
+    uv_mutex_unlock(&page_profile_lock);
+}
+
+// this seems to be needed by the gc tests
+#define JL_GC_N_MAX_POOLS 51
+JL_DLLEXPORT double jl_gc_page_utilization_stats[JL_GC_N_MAX_POOLS];
+
+STATIC_INLINE void gc_dump_page_utilization_data(void) JL_NOTSAFEPOINT
+{
+    // FIXME: MMTk would have to provide its own stats
+}
+
+#define MMTK_GC_PAGE_SZ (1 << 12) // MMTk's page size is defined in mmtk-core constants
+
+JL_DLLEXPORT uint64_t jl_get_pg_size(void)
+{
+    return MMTK_GC_PAGE_SZ;
+}
+
 // Not used by mmtk
 // Number of GC threads that may run parallel marking
 int jl_n_markthreads;
@@ -791,12 +669,7 @@ void jl_gc_debug_critical_error(void) JL_NOTSAFEPOINT
 {
 }
 
-int gc_is_concurrent_collector_thread(int tid) JL_NOTSAFEPOINT
-{
-    return 0;
-}
-
-int gc_is_parallel_collector_thread(int tid) JL_NOTSAFEPOINT
+int gc_is_collector_thread(int tid) JL_NOTSAFEPOINT
 {
     return 0;
 }
