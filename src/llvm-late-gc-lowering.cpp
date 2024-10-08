@@ -2528,7 +2528,7 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
                 builder.CreateStore(new_cursor, cursor_ptr);
 
                 // ptls->gc_tls.gc_num.allocd += osize;
-                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, gc_num));
+                auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls_common) + offsetof(jl_gc_tls_states_common_t, gc_num));
                 auto pool_alloc_i8 = builder.CreateGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
                 auto pool_alloc_tls = builder.CreateBitCast(pool_alloc_i8, PointerType::get(Type::getInt64Ty(target->getContext()), 0), "pool_alloc");
                 auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls);

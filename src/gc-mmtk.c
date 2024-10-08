@@ -108,7 +108,7 @@ void jl_start_gc_threads(void) {
 }
 
 void jl_init_thread_heap(struct _jl_tls_states_t *ptls) JL_NOTSAFEPOINT {
-    jl_thread_heap_t *heap = &ptls->gc_tls.heap;
+    jl_thread_heap_common_t *heap = &ptls->gc_tls_common.heap;
     small_arraylist_new(&heap->weak_refs, 0);
     small_arraylist_new(&heap->live_tasks, 0);
     for (int i = 0; i < JL_N_STACK_POOLS; i++)
@@ -124,7 +124,7 @@ void jl_init_thread_heap(struct _jl_tls_states_t *ptls) JL_NOTSAFEPOINT {
     memcpy(&ptls->gc_tls.mmtk_mutator, mmtk_mutator, sizeof(MMTkMutatorContext));
     // Call post_bind to maintain a list of active mutators and to reclaim the old mutator (which is no longer needed)
     mmtk_post_bind_mutator(&ptls->gc_tls.mmtk_mutator, mmtk_mutator);
-    memset(&ptls->gc_tls.gc_num, 0, sizeof(ptls->gc_tls.gc_num));
+    memset(&ptls->gc_tls_common.gc_num, 0, sizeof(ptls->gc_tls_common.gc_num));
 }
 
 void jl_free_thread_gc_state(struct _jl_tls_states_t *ptls) {
@@ -162,8 +162,8 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection) {
     jl_task_t *ct = jl_current_task;
     jl_ptls_t ptls = ct->ptls;
     if (jl_atomic_load_acquire(&jl_gc_disable_counter)) {
-        size_t localbytes = jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.allocd) + gc_num.interval;
-        jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.allocd, -(int64_t)gc_num.interval);
+        size_t localbytes = jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.allocd) + gc_num.interval;
+        jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.allocd, -(int64_t)gc_num.interval);
         static_assert(sizeof(_Atomic(uint64_t)) == sizeof(gc_num.deferred_alloc), "");
         jl_atomic_fetch_add_relaxed((_Atomic(uint64_t)*)&gc_num.deferred_alloc, localbytes);
         return;
@@ -186,15 +186,15 @@ static void combine_thread_gc_counts(jl_gc_num_t *dest, int update_heap) JL_NOTS
     for (int i = 0; i < gc_n_threads; i++) {
         jl_ptls_t ptls = gc_all_tls_states[i];
         if (ptls) {
-            dest->allocd += (jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.allocd) + gc_num.interval);
-            dest->malloc += jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.malloc);
-            dest->realloc += jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.realloc);
-            dest->poolalloc += jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.poolalloc);
-            dest->bigalloc += jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.bigalloc);
-            dest->freed += jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.free_acc);
+            dest->allocd += (jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.allocd) + gc_num.interval);
+            dest->malloc += jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.malloc);
+            dest->realloc += jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.realloc);
+            dest->poolalloc += jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.poolalloc);
+            dest->bigalloc += jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.bigalloc);
+            dest->freed += jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.free_acc);
             if (update_heap) {
-                jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.alloc_acc, 0);
-                jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.free_acc, 0);
+                jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.alloc_acc, 0);
+                jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.free_acc, 0);
             }
         }
     }
@@ -211,13 +211,13 @@ void reset_thread_gc_counts(void) JL_NOTSAFEPOINT
         jl_ptls_t ptls = gc_all_tls_states[i];
         if (ptls != NULL) {
             // don't reset `pool_live_bytes` here
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.allocd, -(int64_t)gc_num.interval);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.malloc, 0);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.realloc, 0);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.poolalloc, 0);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.bigalloc, 0);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.alloc_acc, 0);
-            jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.free_acc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.allocd, -(int64_t)gc_num.interval);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.malloc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.realloc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.poolalloc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.bigalloc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.alloc_acc, 0);
+            jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.free_acc, 0);
         }
     }
 }
@@ -257,8 +257,8 @@ JL_DLLEXPORT int64_t jl_gc_pool_live_bytes(void) {
 void jl_gc_count_allocd(size_t sz) JL_NOTSAFEPOINT
 {
     jl_ptls_t ptls = jl_current_task->ptls;
-    jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.allocd,
-        jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.allocd) + sz);
+    jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.allocd,
+        jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.allocd) + sz);
 }
 
 void jl_gc_count_freed(size_t sz) JL_NOTSAFEPOINT
@@ -473,8 +473,8 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_default(jl_ptls_t ptls, int osize, siz
         mmtk_immix_post_alloc_fast(&ptls->gc_tls.mmtk_mutator, v, LLT_ALIGN(osize+sizeof(jl_taggedvalue_t), align));
     }
 
-    ptls->gc_tls.gc_num.allocd += osize;
-    ptls->gc_tls.gc_num.poolalloc++;
+    ptls->gc_tls_common.gc_num.allocd += osize;
+    ptls->gc_tls_common.gc_num.poolalloc++;
 
     return v;
 }
@@ -502,8 +502,8 @@ JL_DLLEXPORT jl_value_t *jl_mmtk_gc_alloc_big(jl_ptls_t ptls, size_t sz)
     }
     v->sz = allocsz;
 
-    ptls->gc_tls.gc_num.allocd += allocsz;
-    ptls->gc_tls.gc_num.bigalloc++;
+    ptls->gc_tls_common.gc_num.allocd += allocsz;
+    ptls->gc_tls_common.gc_num.bigalloc++;
 
     jl_value_t *result = jl_valueof(&v->header);
     mmtk_post_alloc(&ptls->gc_tls.mmtk_mutator, result, allocsz, 2);
@@ -565,10 +565,10 @@ JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz)
     if (b == NULL)
         jl_throw(jl_memory_exception);
 
-    jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.allocd,
-        jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.allocd) + allocsz);
-    jl_atomic_store_relaxed(&ptls->gc_tls.gc_num.malloc,
-        jl_atomic_load_relaxed(&ptls->gc_tls.gc_num.malloc) + 1);
+    jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.allocd,
+        jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.allocd) + allocsz);
+    jl_atomic_store_relaxed(&ptls->gc_tls_common.gc_num.malloc,
+        jl_atomic_load_relaxed(&ptls->gc_tls_common.gc_num.malloc) + 1);
     // FIXME: Should these be part of mmtk's heap?
     // malloc_maybe_collect(ptls, sz);
     // jl_atomic_fetch_add_relaxed(&JULIA_MALLOC_BYTES, allocsz);
