@@ -634,6 +634,33 @@ int jl_n_sweepthreads;
 // `tid` of first GC thread
 int gc_first_tid;
 
+// Write barriers
+
+// No inline write barrier -- only used for debugging
+JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
+{
+    jl_gc_wb_back(parent);
+}
+
+JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    jl_gc_wb(parent, ptr);
+}
+
+JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_slow(&ptls->gc_tls.mmtk_mutator, parent, (const void*) 0);
+}
+
+JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_slow(&ptls->gc_tls.mmtk_mutator, parent, ptr);
+}
+
 JL_DLLEXPORT void jl_gc_queue_root(const struct _jl_value_t *ptr) JL_NOTSAFEPOINT
 {
     mmtk_unreachable();
@@ -720,6 +747,12 @@ JL_DLLEXPORT int jl_gc_conservative_gc_support_enabled(void)
 JL_DLLEXPORT jl_value_t *jl_gc_internal_obj_base_ptr(void *p)
 {
     return NULL;
+}
+
+extern unsigned char mmtk_pin_object(void* obj);
+
+JL_DLLEXPORT unsigned char jl_gc_pin_object(void* obj) {
+    return mmtk_pin_object(obj);
 }
 
 #ifdef __cplusplus

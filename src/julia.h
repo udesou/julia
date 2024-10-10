@@ -79,6 +79,15 @@ typedef struct _jl_tls_states_t *jl_ptls_t;
 extern "C" {
 #endif
 
+// object pinning  ------------------------------------------------------------
+
+// FIXME: Pinning objects that get hashed in the ptrhash table
+// until we implement address space hashing.
+#define PTRHASH_PIN(key) jl_gc_pin_object(key);
+
+// Called when pinning objects that would cause an error if moved
+#define PTR_PIN(key) jl_gc_pin_object(key);
+
 // core data types ------------------------------------------------------------
 
 // the common fields are hidden before the pointer, but the following macro is

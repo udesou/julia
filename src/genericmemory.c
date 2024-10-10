@@ -270,7 +270,7 @@ JL_DLLEXPORT void jl_genericmemory_copyto(jl_genericmemory_t *dest, char* destda
         _Atomic(void*) * dest_p = (_Atomic(void*)*)destdata;
         _Atomic(void*) * src_p = (_Atomic(void*)*)srcdata;
         jl_value_t *owner = jl_genericmemory_owner(dest);
-        mmtk_gc_wb(owner, NULL);
+        jl_gc_wb(owner, NULL); // FIXME: needs to be added here since the check below doesn't apply to MMTk 
         if (__unlikely(jl_astaggedvalue(owner)->bits.gc == GC_OLD_MARKED)) {
             jl_value_t *src_owner = jl_genericmemory_owner(src);
             ssize_t done = 0;

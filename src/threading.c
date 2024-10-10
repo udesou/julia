@@ -527,7 +527,6 @@ static void jl_delete_thread(void *value) JL_NOTSAFEPOINT_ENTER
 #else
     pthread_mutex_unlock(&in_signal_lock);
 #endif
-    jl_deinit_thread_heap(ptls);
     free(ptls->bt_data);
     small_arraylist_free(&ptls->locks);
     ptls->previous_exception = NULL;

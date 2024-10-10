@@ -295,15 +295,6 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     mmtk_post_bind_mutator(&ptls->mmtk_mutator, mmtk_mutator);
 }
 
-void jl_free_thread_gc_state(jl_ptls_t ptls)
-{
-}
-
-void jl_deinit_thread_heap(jl_ptls_t ptls)
-{
-    mmtk_destroy_mutator(&ptls->mmtk_mutator);
-}
-
 extern jl_mutex_t finalizers_lock;
 extern arraylist_t to_finalize;
 extern arraylist_t finalizer_list_marked;
@@ -529,31 +520,6 @@ JL_DLLEXPORT void jl_gc_array_ptr_copy(jl_array_t *dest, void **dest_p, jl_array
     mmtk_memory_region_copy(&ptls->mmtk_mutator, jl_array_owner(src), src_p, jl_array_owner(dest), dest_p, n);
 }
 
-// No inline write barrier -- only used for debugging
-JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
-{
-    jl_gc_wb_back(parent);
-}
-
-JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
-{
-    jl_gc_wb(parent, ptr);
-}
-
-JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
-{
-    jl_task_t *ct = jl_current_task;
-    jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, (const void*) 0);
-}
-
-JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
-{
-    jl_task_t *ct = jl_current_task;
-    jl_ptls_t ptls = ct->ptls;
-    mmtk_object_reference_write_slow(&ptls->mmtk_mutator, parent, ptr);
-}
-
 void *jl_gc_perm_alloc_nolock(size_t sz, int zero, unsigned align, unsigned offset)
 {
     jl_ptls_t ptls = jl_current_task->ptls;
@@ -570,11 +536,6 @@ void *jl_gc_perm_alloc(size_t sz, int zero, unsigned align, unsigned offset)
 void jl_gc_notify_image_load(const char* img_data, size_t len)
 {
     mmtk_set_vm_space((void*)img_data, len);
-}
-
-void jl_gc_notify_image_alloc(char* img_data, size_t len)
-{
-    mmtk_immortal_region_post_alloc((void*)img_data, len);
 }
 
 #ifdef __cplusplus

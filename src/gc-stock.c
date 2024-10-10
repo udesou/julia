@@ -3912,6 +3912,28 @@ void jl_gc_notify_image_load(const char* img_data, size_t len)
     // Do nothing
 }
 
+JL_DLLEXPORT unsigned char jl_gc_pin_object(void* obj) {
+    return 0;
+}
+
+// added for MMTk integration
+
+JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb2_noinline(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb1_slow(const void *parent) JL_NOTSAFEPOINT
+{
+}
+
+JL_DLLEXPORT void jl_gc_wb2_slow(const void *parent, const void* ptr) JL_NOTSAFEPOINT
+{
+}
+
 #ifdef __cplusplus
 }
 #endif
