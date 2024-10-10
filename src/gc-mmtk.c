@@ -12,6 +12,14 @@ extern "C" {
 
 // FIXME: Does it make sense for MMTk to implement something similar
 // for now, just ignoring this.
+
+// Must be kept in sync with `base/timing.jl`
+#define FULL_SWEEP_REASON_SWEEP_ALWAYS_FULL (0)
+#define FULL_SWEEP_REASON_FORCED_FULL_SWEEP (1)
+#define FULL_SWEEP_REASON_USER_MAX_EXCEEDED (2)
+#define FULL_SWEEP_REASON_LARGE_PROMOTION_RATE (3)
+#define FULL_SWEEP_NUM_REASONS (4)
+
 // Table recording number of full GCs due to each reason
 JL_DLLEXPORT uint64_t jl_full_sweep_reasons[FULL_SWEEP_NUM_REASONS];
 
