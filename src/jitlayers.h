@@ -325,8 +325,7 @@ public:
     LLVM_ATTRIBUTE_RETURNS_NONNULL void *Allocate(size_t Size, Align Alignment) {
         Align MaxAlign = alignment(Size);
         assert(Alignment < MaxAlign); (void)Alignment;
-        void* result = jl_gc_perm_alloc(Size, 0, MaxAlign.value(), offset);
-        return result;
+        return jl_gc_perm_alloc(Size, 0, MaxAlign.value(), offset);
     }
 
     inline LLVM_ATTRIBUTE_RETURNS_NONNULL

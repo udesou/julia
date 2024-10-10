@@ -270,15 +270,6 @@ $(BUILDDIR)/%.o : $(SRCDIR)/%.d
 $(BUILDDIR)/%.dbg.obj : $(SRCDIR)/%.d
 	@$(call PRINT_DTRACE, $(DTRACE) -G -s $< -o $@)
 
-ifeq ($(WITH_MMTK), 1)
-$(MMTK_JULIA_INC)/%.o: $(MMTK_JULIA_INC)/%.c $(HEADERS) | $(MMTK_JULIA_INC)
-	@$(call PRINT_CC, $(CC) $(JCPPFLAGS) $(JCFLAGS) $(SHIPFLAGS) $(DISABLE_ASSERTIONS) -c $< -o $@)
-$(MMTK_JULIA_INC)/%.dbg.obj: $(MMTK_JULIA_INC)/%.c $(HEADERS) | $(MMTK_JULIA_INC)
-	@$(call PRINT_CC, $(CC) $(JCPPFLAGS) $(JCFLAGS) $(DEBUGFLAGS) -c $< -o $@)
-$(MMTK_LIB_DST): $(MMTK_LIB_SRC)
-	@$(call PRINT_MMTK, cp $< $@)
-endif
-
 # public header rules
 $(eval $(call dir_target,$(build_includedir)/julia))
 define public_header_target
