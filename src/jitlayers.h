@@ -326,10 +326,6 @@ public:
         Align MaxAlign = alignment(Size);
         assert(Alignment < MaxAlign); (void)Alignment;
         void* result = jl_gc_perm_alloc(Size, 0, MaxAlign.value(), offset);
-#ifdef MMTK_GC
-        jl_ptls_t ptls = jl_current_task->ptls;
-        mmtk_immortal_post_alloc_fast(&ptls->mmtk_mutator, jl_valueof(result), Size);
-#endif
         return result;
     }
 

@@ -286,7 +286,8 @@ JL_DLLEXPORT void jl_atexit_hook(int exitcode) JL_NOTSAFEPOINT_ENTER
     JL_STDOUT = (uv_stream_t*) STDOUT_FILENO;
     JL_STDERR = (uv_stream_t*) STDERR_FILENO;
 
-    jl_gc_run_all_finalizers(ct);
+    if (ct)
+        jl_gc_run_all_finalizers(ct);
 
     uv_loop_t *loop = jl_global_event_loop();
     if (loop != NULL) {
@@ -826,7 +827,6 @@ JL_DLLEXPORT void julia_init(JL_IMAGE_SEARCH rel)
     arraylist_push(&eytzinger_image_tree, (void*)1); // outside image
 
     jl_ptls_t ptls = jl_init_threadtls(0);
-
 #pragma GCC diagnostic push
 #if defined(_COMPILER_GCC_) && __GNUC__ >= 12
 #pragma GCC diagnostic ignored "-Wdangling-pointer"
@@ -889,9 +889,6 @@ static NOINLINE void _finish_julia_init(JL_IMAGE_SEARCH rel, jl_ptls_t ptls, jl_
     jl_start_gc_threads();
     uv_barrier_wait(&thread_init_done);
 
-#ifdef MMTK_GC
-    mmtk_initialize_collection((void *)ptls);
-#endif
     jl_gc_enable(1);
 
     if (jl_options.image_file && (!jl_generating_output() || jl_options.incremental) && jl_module_init_order) {

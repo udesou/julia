@@ -54,7 +54,6 @@ jl_genericmemory_t *_new_genericmemory_(jl_value_t *mtype, size_t nel, int8_t is
         tot = sizeof(jl_genericmemory_t) + sizeof(void*);
     }
     m = (jl_genericmemory_t*)jl_gc_alloc(ct->ptls, tot, mtype);
-
     if (pooled) {
         data = (char*)m + JL_SMALL_BYTE_ALIGNMENT;
     }

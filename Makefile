@@ -130,7 +130,7 @@ check-whitespace:
 ifneq ($(NO_GIT), 1)
 	@# Append the directory containing the julia we just built to the end of `PATH`,
 	@# to give us the best chance of being able to run this check.
-	@PATH="$(PATH):$(dir $(JULIA_EXECUTABLE))" $(JULIA_EXECUTABLE) $(call cygpath_w,$(JULIAHOME)/contrib/check-whitespace.jl)
+	@PATH="$(PATH):$(dir $(JULIA_EXECUTABLE))" julia $(call cygpath_w,$(JULIAHOME)/contrib/check-whitespace.jl)
 else
 	$(warn "Skipping whitespace check because git is unavailable")
 endif
@@ -647,9 +647,6 @@ testall: check-whitespace $(JULIA_BUILD_MODE)
 
 testall1: check-whitespace $(JULIA_BUILD_MODE)
 	@env JULIA_CPU_THREADS=1 $(MAKE) $(QUIET_MAKE) -C $(BUILDROOT)/test all JULIA_BUILD_MODE=$(JULIA_BUILD_MODE)
-
-testall3: check-whitespace $(JULIA_BUILD_MODE)
-	@env JULIA_CPU_THREADS=3 $(MAKE) $(QUIET_MAKE) -C $(BUILDROOT)/test all JULIA_BUILD_MODE=$(JULIA_BUILD_MODE)
 
 test-%: check-whitespace $(JULIA_BUILD_MODE) .FORCE
 	@([ $$(( $$(date +%s) - $$(date -r $(build_private_libdir)/sys.$(SHLIB_EXT) +%s) )) -le 100 ] && \
