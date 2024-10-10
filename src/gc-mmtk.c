@@ -10,6 +10,11 @@
 extern "C" {
 #endif
 
+// FIXME: Does it make sense for MMTk to implement something similar
+// for now, just ignoring this.
+// Table recording number of full GCs due to each reason
+JL_DLLEXPORT uint64_t jl_full_sweep_reasons[FULL_SWEEP_NUM_REASONS];
+
 // FIXME: Should the values below be shared between both GC's?
 // Note that MMTk uses a hard max heap limit, which is set by default
 // as 70% of the free available memory. The min heap is set as the
