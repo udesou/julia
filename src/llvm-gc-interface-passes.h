@@ -389,6 +389,12 @@ private:
     Function *smallAllocFunc;
     Function *bigAllocFunc;
     Function *allocTypedFunc;
+#ifdef MMTK_GC
+    Function *writeBarrier1Func;
+    Function *writeBarrier2Func;
+    Function *writeBarrier1SlowFunc;
+    Function *writeBarrier2SlowFunc;
+#endif
     Instruction *pgcstack;
     Type *T_size;
 
@@ -412,6 +418,13 @@ private:
 
     // Lowers a `julia.safepoint` intrinsic.
     void lowerSafepoint(CallInst *target, Function &F);
+
+#ifdef MMTK_GC
+    void lowerWriteBarrier1(CallInst *target, Function &F);
+    void lowerWriteBarrier2(CallInst *target, Function &F);
+    void lowerWriteBarrier1Slow(CallInst *target, Function &F);
+    void lowerWriteBarrier2Slow(CallInst *target, Function &F);
+#endif
 };
 
 #endif // LLVM_GC_PASSES_H

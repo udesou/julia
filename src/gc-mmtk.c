@@ -382,9 +382,18 @@ inline void* mmtk_immortal_alloc_fast(MMTkMutatorContext* mutator, size_t size, 
 }
 
 inline void mmtk_immortal_post_alloc_fast(MMTkMutatorContext* mutator, void* obj, size_t size) {
-    // FIXME: Similarly, for now, we do nothing
-    // but when supporting moving, this is where we set the valid object (VO) bit
-    // and log (old gen) bit
+    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
+        intptr_t addr = (intptr_t) obj;
+        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
+        intptr_t shift = (addr >> 3) & 0b111;
+        while(1) {
+            uint8_t old_val = *meta_addr;
+            uint8_t new_val = old_val | (1 << shift);
+            if (jl_atomic_cmpswap((_Atomic(uint8_t)*)meta_addr, &old_val, new_val)) {
+                break;
+            }
+        }
+    }
 }
 
 // allocation wrappers that track allocation and let collection run
@@ -634,7 +643,7 @@ int jl_n_sweepthreads;
 // `tid` of first GC thread
 int gc_first_tid;
 
-// Write barriers
+// TODO: Move write barriers from julia.h and add them here
 
 // No inline write barrier -- only used for debugging
 JL_DLLEXPORT void jl_gc_wb1_noinline(const void *parent) JL_NOTSAFEPOINT

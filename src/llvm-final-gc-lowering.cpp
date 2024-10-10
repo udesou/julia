@@ -117,6 +117,32 @@ void FinalLowerGC::lowerSafepoint(CallInst *target, Function &F)
     target->eraseFromParent();
 }
 
+#ifdef MMTK_GC
+void FinalLowerGC::lowerWriteBarrier1(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 1);
+    target->setCalledFunction(writeBarrier1Func);
+}
+
+void FinalLowerGC::lowerWriteBarrier2(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 2);
+    target->setCalledFunction(writeBarrier2Func);
+}
+
+void FinalLowerGC::lowerWriteBarrier1Slow(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 1);
+    target->setCalledFunction(writeBarrier1SlowFunc);
+}
+
+void FinalLowerGC::lowerWriteBarrier2Slow(CallInst *target, Function &F)
+{
+    assert(target->arg_size() == 2);
+    target->setCalledFunction(writeBarrier2SlowFunc);
+}
+#endif
+
 void FinalLowerGC::lowerGCAllocBytes(CallInst *target, Function &F)
 {
     ++GCAllocBytesCount;
@@ -181,6 +207,12 @@ bool FinalLowerGC::runOnFunction(Function &F)
     smallAllocFunc = getOrDeclare(jl_well_known::GCSmallAlloc);
     bigAllocFunc = getOrDeclare(jl_well_known::GCBigAlloc);
     allocTypedFunc = getOrDeclare(jl_well_known::GCAllocTyped);
+#ifdef MMTK_GC
+    writeBarrier1Func = getOrDeclare(jl_well_known::GCWriteBarrier1);
+    writeBarrier2Func = getOrDeclare(jl_well_known::GCWriteBarrier2);
+    writeBarrier1SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier1Slow);
+    writeBarrier2SlowFunc = getOrDeclare(jl_well_known::GCWriteBarrier2Slow);
+#endif
     T_size = F.getParent()->getDataLayout().getIntPtrType(F.getContext());
 
     // Lower all calls to supported intrinsics.
@@ -208,6 +240,13 @@ bool FinalLowerGC::runOnFunction(Function &F)
             LOWER_INTRINSIC(GCAllocBytes, lowerGCAllocBytes);
             LOWER_INTRINSIC(queueGCRoot, lowerQueueGCRoot);
             LOWER_INTRINSIC(safepoint, lowerSafepoint);
+
+#ifdef MMTK_GC
+            LOWER_INTRINSIC(writeBarrier1, lowerWriteBarrier1);
+            LOWER_INTRINSIC(writeBarrier2, lowerWriteBarrier2);
+            LOWER_INTRINSIC(writeBarrier1Slow, lowerWriteBarrier1Slow);
+            LOWER_INTRINSIC(writeBarrier2Slow, lowerWriteBarrier2Slow);
+#endif
 
 #undef LOWER_INTRINSIC
         }

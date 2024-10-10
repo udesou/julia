@@ -1130,7 +1130,7 @@ JL_DLLEXPORT void *jl_malloc_stack(size_t *bufsz, struct _jl_task_t *owner) JL_N
 JL_DLLEXPORT void jl_free_stack(void *stkbuf, size_t bufsz);
 
 // GC write barriers
-
+#ifndef MMTK_GC
 STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
 {
     // parent and ptr isa jl_value_t*
@@ -1160,6 +1160,24 @@ STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_
     if (ly->npointers)
         jl_gc_queue_multiroot((jl_value_t*)parent, ptr, dt);
 }
+#else  // MMTK_GC
+STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT;
+
+STATIC_INLINE void jl_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb(parent, ptr);
+}
+
+STATIC_INLINE void jl_gc_wb_back(const void *ptr) JL_NOTSAFEPOINT // ptr isa jl_value_t*
+{
+    mmtk_gc_wb(ptr, (void*)0);
+}
+
+STATIC_INLINE void jl_gc_multi_wb(const void *parent, const jl_value_t *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb(parent, (void*)0);
+}
+#endif // MMTK_GC
 
 JL_DLLEXPORT void jl_gc_safepoint(void);
 JL_DLLEXPORT int jl_safepoint_suspend_thread(int tid, int waitstate);
@@ -2658,6 +2676,58 @@ extern JL_DLLEXPORT jl_cgparams_t jl_default_cgparams;
 typedef struct {
     int emit_metadata;
 } jl_emission_params_t;
+
+#ifdef MMTK_GC
+
+extern void mmtk_object_reference_write_post(void* mutator, const void* parent, const void* ptr);
+extern void mmtk_object_reference_write_slow(void* mutator, const void* parent, const void* ptr);
+
+// These need to be constants.
+
+#define MMTK_OBJECT_BARRIER (1)
+// Stickyimmix needs write barrier. Immix does not need write barrier.
+#ifdef MMTK_PLAN_IMMIX
+#define MMTK_NEEDS_WRITE_BARRIER (0)
+#endif
+#ifdef MMTK_PLAN_STICKYIMMIX
+#define MMTK_NEEDS_WRITE_BARRIER (1)
+#endif
+
+#define MMTK_DEFAULT_IMMIX_ALLOCATOR (0)
+#define MMTK_IMMORTAL_BUMP_ALLOCATOR (0)
+
+extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
+
+// Directly call into MMTk for write barrier (debugging only)
+STATIC_INLINE void mmtk_gc_wb_full(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    jl_task_t *ct = jl_current_task;
+    jl_ptls_t ptls = ct->ptls;
+    mmtk_object_reference_write_post(&ptls->gc_tls.mmtk_mutator, parent, ptr);
+}
+
+// Inlined fastpath
+STATIC_INLINE void mmtk_gc_wb_fast(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    if (MMTK_NEEDS_WRITE_BARRIER == MMTK_OBJECT_BARRIER) {
+        intptr_t addr = (intptr_t) (void*) parent;
+        uint8_t* meta_addr = (uint8_t*) (MMTK_SIDE_LOG_BIT_BASE_ADDRESS) + (addr >> 6);
+        intptr_t shift = (addr >> 3) & 0b111;
+        uint8_t byte_val = *meta_addr;
+        if (((byte_val >> shift) & 1) == 1) {
+            jl_task_t *ct = jl_current_task;
+            jl_ptls_t ptls = ct->ptls;
+            mmtk_object_reference_write_slow(&ptls->gc_tls.mmtk_mutator, parent, ptr);
+        }
+    }
+}
+
+STATIC_INLINE void mmtk_gc_wb(const void *parent, const void *ptr) JL_NOTSAFEPOINT
+{
+    mmtk_gc_wb_fast(parent, ptr);
+}
+
+#endif
 
 #ifdef __cplusplus
 }
