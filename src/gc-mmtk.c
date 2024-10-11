@@ -453,6 +453,7 @@ void *jl_gc_perm_alloc_nolock(size_t sz, int zero, unsigned align, unsigned offs
     jl_ptls_t ptls = jl_current_task->ptls;
     size_t allocsz = mmtk_align_alloc_sz(sz);
     void* addr = mmtk_immortal_alloc_fast(&ptls->gc_tls.mmtk_mutator, allocsz, align, offset);
+    mmtk_immortal_post_alloc_fast(&ptls->gc_tls.mmtk_mutator, jl_valueof(addr), allocsz);
     return addr;
 }
 
@@ -468,9 +469,6 @@ jl_value_t *jl_gc_permobj(size_t sz, void *ty) JL_NOTSAFEPOINT
                                                  sizeof(void*) * 2 : 16));
     jl_taggedvalue_t *o = (jl_taggedvalue_t*)jl_gc_perm_alloc(allocsz, 0, align,
                                                               sizeof(void*) % align);
-
-    jl_ptls_t ptls = jl_current_task->ptls;
-    mmtk_immortal_post_alloc_fast(&ptls->gc_tls.mmtk_mutator, jl_valueof(o), allocsz);
     o->header = (uintptr_t)ty;
     return jl_valueof(o);
 }
@@ -606,6 +604,11 @@ JL_DLLEXPORT void *jl_gc_managed_malloc(size_t sz)
 void jl_gc_notify_image_load(const char* img_data, size_t len)
 {
     mmtk_set_vm_space((void*)img_data, len);
+}
+
+void jl_gc_notify_image_alloc(char* img_data, size_t len)
+{
+    mmtk_immortal_region_post_alloc((void*)img_data, len);
 }
 
 // mutex for page profile
