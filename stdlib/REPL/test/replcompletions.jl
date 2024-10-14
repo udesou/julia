@@ -2238,6 +2238,26 @@ let s = "using .Iss"
     @test res
     @test "Issue52922" in c
 end
+let s = " using .Iss"
+    c, r, res = test_complete_context(s)
+    @test res
+    @test "Issue52922" in c
+end
+let s = "@time using .Iss"
+    c, r, res = test_complete_context(s)
+    @test res
+    @test "Issue52922" in c
+end
+let s = " @time using .Iss"
+    c, r, res = test_complete_context(s)
+    @test res
+    @test "Issue52922" in c
+end
+let s = "@time(using .Iss"
+    c, r, res = test_complete_context(s)
+    @test res
+    @test "Issue52922" in c
+end
 let s = "using .Issue52922.Inn"
     c, r, res = test_complete_context(s)
     @test res
@@ -2390,4 +2410,9 @@ end
 let (c, r, res) = test_complete_context("const xxx = Base.si", Main)
     @test res
     @test "sin" ∈ c
+end
+
+let (c, r, res) = test_complete_context("global xxx::Number = Base.", Main)
+    @test res
+    @test "pi" ∈ c
 end

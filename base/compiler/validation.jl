@@ -22,6 +22,7 @@ const VALID_EXPR_HEADS = IdDict{Symbol,UnitRange{Int}}(
     :copyast => 1:1,
     :meta => 0:typemax(Int),
     :global => 1:1,
+    :globaldecl => 2:2,
     :foreigncall => 5:typemax(Int), # name, RT, AT, nreq, (cconv, effects), args..., roots...
     :cfunction => 5:5,
     :isdefined => 1:2,
@@ -256,7 +257,9 @@ end
 
 function is_valid_rvalue(@nospecialize(x))
     is_valid_argument(x) && return true
-    if isa(x, Expr) && x.head in (:new, :splatnew, :the_exception, :isdefined, :call, :invoke, :invoke_modify, :foreigncall, :cfunction, :gc_preserve_begin, :copyast, :new_opaque_closure)
+    if isa(x, Expr) && x.head in (:new, :splatnew, :the_exception, :isdefined, :call,
+        :invoke, :invoke_modify, :foreigncall, :cfunction, :gc_preserve_begin, :copyast,
+        :new_opaque_closure)
         return true
     end
     return false

@@ -14,20 +14,14 @@ public
     AsyncCondition,
     CodeUnits,
     Event,
+    Fix,
     Fix1,
     Fix2,
     Generator,
     ImmutableDict,
     OneTo,
     LogRange,
-    AnnotatedString,
-    AnnotatedChar,
     UUID,
-
-# Annotated strings
-    annotatedstring,
-    annotate!,
-    annotations,
 
 # Semaphores
     Semaphore,
@@ -66,7 +60,7 @@ public
     ispublic,
     remove_linenums!,
 
-# Opperators
+# Operators
     operator_associativity,
     operator_precedence,
     isbinaryoperator,
@@ -109,7 +103,11 @@ public
     reseteof,
     link_pipe!,
 
+# filesystem operations
+    rename,
+
 # misc
     notnothing,
     runtests,
-    text_colors
+    text_colors,
+    depwarn
