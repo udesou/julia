@@ -816,7 +816,6 @@ JCFLAGS += -DMMTK_PLAN_STICKYIMMIX
 endif
 MMTK_DIR = ${MMTK_JULIA_DIR}/mmtk
 MMTK_API_INC = $(MMTK_DIR)/api
-MMTK_JULIA_INC = ${MMTK_JULIA_DIR}/julia
 ifeq ($(OS),Linux)
 MMTK_LIB_NAME := libmmtk_julia.so
 else
