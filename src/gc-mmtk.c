@@ -217,7 +217,7 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection) {
 
 // Based on jl_gc_collect from gc-stock.c
 // called when stopping the thread in `mmtk_block_for_gc`
-JL_DLLEXPORT void jl_gc_prepare_to_collect(void)
+JL_DLLEXPORT void jl_mmtk_prepare_to_collect(void)
 {
     // FIXME: set to JL_GC_AUTO since we're calling it from mmtk
     // maybe just remove this?
@@ -477,7 +477,7 @@ static void add_node_to_tpinned_roots_buffer(RootsWorkClosure* closure, RootsWor
     }
 }
 
-JL_DLLEXPORT void jl_gc_scan_vm_specific_roots(RootsWorkClosure* closure)
+JL_DLLEXPORT void jl_mmtk_scan_vm_specific_roots(RootsWorkClosure* closure)
 {
     // Create a new buf
     RootsWorkBuffer buf = (closure->report_nodes_func)((void**)0, 0, 0, closure->data, true);
@@ -516,7 +516,7 @@ JL_DLLEXPORT void jl_gc_scan_vm_specific_roots(RootsWorkClosure* closure)
     (closure->report_tpinned_nodes_func)(tpinned_buf.ptr, tpinned_len, tpinned_buf.cap, closure->data, false);
 }
 
-JL_DLLEXPORT void jl_gc_scan_julia_exc_obj(void* obj_raw, void* closure, ProcessSlotFn process_slot) {
+JL_DLLEXPORT void jl_mmtk_scan_julia_exc_obj(void* obj_raw, void* closure, ProcessSlotFn process_slot) {
     jl_task_t *ta = (jl_task_t*)obj_raw;
 
     if (ta->excstack) { // inlining label `excstack` from mark_loop
@@ -574,7 +574,7 @@ static void jl_gc_free_memory(jl_value_t *v, int isaligned) JL_NOTSAFEPOINT
     gc_num.freecall++;
 }
 
-JL_DLLEXPORT void jl_gc_mmtk_sweep_malloced_memory(void) JL_NOTSAFEPOINT
+JL_DLLEXPORT void jl_mmtk_sweep_malloced_memory(void) JL_NOTSAFEPOINT
 {
     void* iter = mmtk_new_mutator_iterator();
     jl_ptls_t ptls2 = (jl_ptls_t)mmtk_get_next_mutator_tls(iter);
@@ -618,7 +618,7 @@ JL_DLLEXPORT void jl_gc_mmtk_sweep_malloced_memory(void) JL_NOTSAFEPOINT
 #define jl_genericmemory_elsize(a) (((jl_datatype_t*)jl_typetagof(a))->layout->size)
 
 // if data is inlined inside the genericmemory object --- to->ptr needs to be updated when copying the array
-JL_DLLEXPORT void jl_gc_update_inlined_array(void* from, void* to) {
+JL_DLLEXPORT void jl_mmtk_update_inlined_array(void* from, void* to) {
     jl_value_t* jl_from = (jl_value_t*) from;
     jl_value_t* jl_to = (jl_value_t*) to;
 
@@ -640,7 +640,7 @@ JL_DLLEXPORT void jl_gc_update_inlined_array(void* from, void* to) {
 }
 
 // modified sweep_stack_pools from gc-stacks.c
-JL_DLLEXPORT void jl_gc_mmtk_sweep_stack_pools(void)
+JL_DLLEXPORT void jl_mmtk_sweep_stack_pools(void)
 {
     // Stack sweeping algorithm:
     //    // deallocate stacks if we have too many sitting around unused
@@ -729,13 +729,13 @@ JL_DLLEXPORT void jl_gc_mmtk_sweep_stack_pools(void)
     }
 }
 
-JL_DLLEXPORT void* jl_gc_get_stackbase(int16_t tid) {
+JL_DLLEXPORT void* jl_mmtk_get_stackbase(int16_t tid) {
     assert(tid >= 0);
     jl_ptls_t ptls2 = jl_all_tls_states[tid];
     return ptls2->stackbase;
 }
 
-JL_DLLEXPORT void jl_gc_update_stats(uint64_t inc, size_t mmtk_live_bytes, bool is_nursery_gc) {
+JL_DLLEXPORT void jl_mmtk_update_gc_stats(uint64_t inc, size_t mmtk_live_bytes, bool is_nursery_gc) {
     gc_num.total_time += inc;
     gc_num.pause += 1;
     gc_num.full_sweep += !(is_nursery_gc);
@@ -746,13 +746,13 @@ JL_DLLEXPORT void jl_gc_update_stats(uint64_t inc, size_t mmtk_live_bytes, bool 
 
 #define jl_genericmemory_data_owner_field_addr(a) ((jl_value_t**)((jl_genericmemory_t*)(a) + 1))
 
-JL_DLLEXPORT void* jl_gc_get_owner_address_to_mmtk(void* m) {
+JL_DLLEXPORT void* jl_mmtk_get_owner_address(void* m) {
     return (void*)jl_genericmemory_data_owner_field_addr(m);
 }
 
 // same as jl_genericmemory_how but with JL_DLLEXPORT
 // we should probably inline this in Rust
-JL_DLLEXPORT size_t jl_gc_genericmemory_how(void *arg) JL_NOTSAFEPOINT
+JL_DLLEXPORT size_t jl_mmtk_genericmemory_how(void *arg) JL_NOTSAFEPOINT
 {
     jl_genericmemory_t* m = (jl_genericmemory_t*)arg;
     if (m->ptr == (void*)((char*)m + 16)) // JL_SMALL_BYTE_ALIGNMENT (from julia_internal.h)
@@ -777,20 +777,20 @@ JL_DLLEXPORT jl_weakref_t *jl_gc_new_weakref_th(jl_ptls_t ptls, jl_value_t *valu
     return wr;
 }
 
-JL_DLLEXPORT void* jl_gc_get_thread_finalizer_list(void* ptls_raw) {
+JL_DLLEXPORT void* jl_mmtk_get_thread_finalizer_list(void* ptls_raw) {
     jl_ptls_t ptls = (jl_ptls_t) ptls_raw;
     return (void*)&ptls->finalizers;
 }
 
-JL_DLLEXPORT void* jl_gc_get_to_finalize_list(void) {
+JL_DLLEXPORT void* jl_mmtk_get_to_finalize_list(void) {
     return (void*)&to_finalize;
 }
 
-JL_DLLEXPORT void* jl_gc_get_marked_finalizers_list(void) {
+JL_DLLEXPORT void* jl_mmtk_get_marked_finalizers_list(void) {
     return (void*)&finalizer_list_marked;
 }
 
-JL_DLLEXPORT int* jl_gc_get_have_pending_finalizers(void) {
+JL_DLLEXPORT int* jl_mmtk_get_have_pending_finalizers(void) {
     return (int*)&jl_gc_have_pending_finalizers;
 }
 
