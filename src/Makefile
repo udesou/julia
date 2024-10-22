@@ -182,15 +182,6 @@ CG_RELEASE_LIBS := $(COMMON_LIBPATHS) $(CG_LIBS) -ljulia -ljulia-internal
 OBJS := $(SRCS:%=$(BUILDDIR)/%.o)
 DOBJS := $(SRCS:%=$(BUILDDIR)/%.dbg.obj)
 
-ifeq ($(WITH_MMTK), 1)
-MMTK_SRCS := mmtk_julia
-MMTK_OBJS := $(MMTK_SRCS:%=$(MMTK_JULIA_INC)/%.o) $(MMTK_LIB_DST)
-MMTK_DOBJS := $(MMTK_SRCS:%=$(MMTK_JULIA_INC)/%.dbg.obj) $(MMTK_LIB_DST)
-else
-MMTK_OBJS :=
-MMTK_DOBJS :=
-endif
-
 CODEGEN_OBJS := $(CODEGEN_SRCS:%=$(BUILDDIR)/%.o)
 CODEGEN_DOBJS := $(CODEGEN_SRCS:%=$(BUILDDIR)/%.dbg.obj)
 
@@ -476,7 +467,6 @@ clean:
 	-rm -f $(BUILDDIR)/*.dbg.obj $(BUILDDIR)/*.o $(BUILDDIR)/*.dwo $(BUILDDIR)/*.$(SHLIB_EXT) $(BUILDDIR)/*.a $(BUILDDIR)/*.h.gen
 	-rm -f $(BUILDDIR)/julia.expmap
 	-rm -f $(BUILDDIR)/julia_version.h
-	-rm -f $(MMTK_OBJS) $(MMTK_DOBJS)
 
 clean-flisp:
 	-$(MAKE) -C $(SRCDIR)/flisp clean BUILDDIR='$(abspath $(BUILDDIR)/flisp)'
