@@ -504,6 +504,7 @@ JL_DLLEXPORT void jl_mmtk_scan_vm_specific_roots(RootsWorkClosure* closure)
     // constants
     add_node_to_roots_buffer(closure, &buf, &len, jl_emptytuple_type);
     add_node_to_roots_buffer(closure, &buf, &len, cmpswap_names);
+    add_node_to_roots_buffer(closure, &buf, &len, precompile_field_replace);
 
     // jl_global_roots_table must be transitively pinned
     RootsWorkBuffer tpinned_buf = (closure->report_tpinned_nodes_func)((void**)0, 0, 0, closure->data, true);
