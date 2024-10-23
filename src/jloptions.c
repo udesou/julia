@@ -841,6 +841,7 @@ restart_switch:
 #else
                 // always set to 0 if not using MMTk
                 jl_options.mmtk_inline_fastpath = 0;
+                jl_printf(JL_STDERR, "WARNING: Attempting to set --inline-fastpath without using MMTk");
 #endif
             else if (!strcmp(optarg,"no"))
                 jl_options.mmtk_inline_fastpath = 0;
