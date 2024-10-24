@@ -2640,18 +2640,24 @@ bool LateLowerGCFrame::runOnFunction(Function &F, bool *CFGModified) {
     CleanupIR(F, &S, CFGModified);
 
     // We lower the julia.gc_alloc_bytes intrinsic in this pass to insert slowpath/fastpath blocks for MMTk
-    auto GCAllocBytes = getOrNull(jl_intrinsics::GCAllocBytes);
-
-    if (GCAllocBytes) {
-        for (User *U : GCAllocBytes->users()) {
-            if (auto *CI = dyn_cast<CallInst>(U)) {
-                auto new_CI = lowerGCAllocBytesLate(CI, F);
-                if (new_CI != CI) {
-                    *CFGModified = true;
-                    CI->replaceAllUsesWith(new_CI);
-                    CI->eraseFromParent();
-                }
+    for (BasicBlock &BB : F) {
+        for (auto it = BB.begin(); it != BB.end();) {
+            auto *CI = dyn_cast<CallInst>(&*it);
+            if (!CI) {
+                ++it;
+                continue;
             }
+
+            Value *callee = CI->getCalledOperand();
+            assert(callee);
+
+            auto GCAllocBytes = getOrNull(jl_intrinsics::GCAllocBytes);
+            if (GCAllocBytes == callee) {
+                *CFGModified = true;
+                replaceInstruction(CI, lowerGCAllocBytesLate(CI, F), it);
+                continue;
+            }
+            ++it;
         }
     }
 
