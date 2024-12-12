@@ -34,7 +34,7 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
                 auto limit_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()),  allocator_offset + offsetof(ImmixAllocator, limit));
 
                 auto cursor_tls_i8 = builder.CreateInBoundsGEP(Type::getInt8Ty(target->getContext()), ptls, cursor_pos);
-                auto cursor = builder.CreateLoad(Type::getInt64Ty(target->getContext()), cursor_tls_i8, "cursor");
+                auto cursor = builder.CreateAlignedLoad(Type::getInt64Ty(target->getContext()), cursor_ptr, Align(sizeof(void *)), "cursor");
 
                 // offset = 8
                 auto delta_offset = builder.CreateNSWSub(ConstantInt::get(Type::getInt64Ty(target->getContext()), 0), ConstantInt::get(Type::getInt64Ty(target->getContext()), 8));
@@ -47,7 +47,7 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
                 auto new_cursor = builder.CreateNSWAdd(result, pool_osize);
 
                 auto limit_tls_i8 = builder.CreateInBoundsGEP(Type::getInt8Ty(target->getContext()), ptls, limit_pos);
-                auto limit = builder.CreateLoad(Type::getInt64Ty(target->getContext()), limit_tls_i8, "limit");
+                auto limit = builder.CreateAlignedLoad(Type::getInt64Ty(target->getContext()), limit_ptr, Align(sizeof(void *)), "limit");
 
                 auto gt_limit = builder.CreateICmpSGT(new_cursor, limit);
 
@@ -77,7 +77,7 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
                 // ptls->gc_tls.gc_num.allocd += osize;
                 auto pool_alloc_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), offsetof(jl_tls_states_t, gc_tls_common) + offsetof(jl_gc_tls_states_common_t, gc_num));
                 auto pool_alloc_i8 = builder.CreateInBoundsGEP(Type::getInt8Ty(target->getContext()), ptls, pool_alloc_pos);
-                auto pool_allocd = builder.CreateLoad(Type::getInt64Ty(target->getContext()), pool_alloc_i8);
+                auto pool_allocd = builder.CreateAlignedLoad(Type::getInt64Ty(target->getContext()), pool_alloc_tls, Align(sizeof(void *)));
                 auto pool_allocd_total = builder.CreateAdd(pool_allocd, pool_osize);
                 builder.CreateStore(pool_allocd_total, pool_alloc_i8);
 
