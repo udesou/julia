@@ -591,6 +591,7 @@ JL_DLLEXPORT void jl_gc_mmtk_sweep_malloced_memory(void) JL_NOTSAFEPOINT
         }
         ptls2 = (jl_ptls_t)mmtk_get_next_mutator_tls(iter);
     }
+    gc_sweep_sysimg();
     mmtk_close_mutator_iterator(iter);
 }
 
