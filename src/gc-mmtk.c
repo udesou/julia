@@ -74,7 +74,7 @@ void jl_gc_init(void) {
 
     jl_set_check_alive_type(mmtk_is_reachable_object);
 
-    arraylist_new(&gc_pinned_objects, 0);
+    arraylist_new(&gc_inference_roots, 0);
     arraylist_new(&to_finalize, 0);
     arraylist_new(&finalizer_list_marked, 0);
     gc_num.interval = default_collect_interval;
@@ -249,25 +249,6 @@ JL_DLLEXPORT void jl_gc_collect(jl_gc_collection_t collection) {
     // print_fragmentation();
 }
 
-void gc_pin_objects_from_inference_engine(arraylist_t *objects_pinned_by_call)
-{
-    for (size_t i = 0; i < gc_pinned_objects.len; i++) {
-        void *obj = gc_pinned_objects.items[i];
-        unsigned char got_pinned = mmtk_pin_object(obj);
-        if (got_pinned) {
-            arraylist_push(objects_pinned_by_call, obj);
-        }
-    }
-}
-
-void gc_unpin_objects_from_inference_engine(arraylist_t *objects_pinned_by_call)
-{
-    for (size_t i = 0; i < objects_pinned_by_call->len; i++) {
-        void *obj = objects_pinned_by_call->items[i];
-        mmtk_unpin_object(obj);
-    }
-}
-
 // Based on jl_gc_collect from gc-stock.c
 // called when stopping the thread in `mmtk_block_for_gc`
 JL_DLLEXPORT void jl_gc_prepare_to_collect(void)
@@ -330,12 +311,7 @@ JL_DLLEXPORT void jl_gc_prepare_to_collect(void)
         jl_gc_notify_thread_yield(ptls, NULL);
         JL_LOCK_NOGC(&finalizers_lock); // all the other threads are stopped, so this does not make sense, right? otherwise, failing that, this seems like plausibly a deadlock
 #ifndef __clang_gcanalyzer__
-        arraylist_t objects_pinned_by_call;
-        arraylist_new(&objects_pinned_by_call, 0);
-        gc_pin_objects_from_inference_engine(&objects_pinned_by_call);
         mmtk_block_thread_for_gc();
-        gc_unpin_objects_from_inference_engine(&objects_pinned_by_call);
-        arraylist_free(&objects_pinned_by_call);
 #endif
         JL_UNLOCK_NOGC(&finalizers_lock);
     }
@@ -800,6 +776,12 @@ JL_DLLEXPORT void jl_gc_scan_vm_specific_roots(RootsWorkClosure* closure)
     size_t i;
     for (i = 0; i < jl_global_roots_list->length; i++) {
         jl_value_t* root = jl_genericmemory_ptr_ref(jl_global_roots_list, i);
+        add_node_to_roots_buffer(closure, &buf, &len, root);
+    }
+
+    // trace roots from inference engine
+    for (size_t i = 0; i < gc_inference_roots.len; i++) {
+        void *root = gc_inference_roots.items[i];
         add_node_to_roots_buffer(closure, &buf, &len, root);
     }
 
