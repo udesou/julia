@@ -13,9 +13,9 @@ There are different configurations supported by the following variables, which c
 
 | Variable      |       |        |
 |---------------|--------------|---------------|
-| `MMTK_PLAN`     | Immix        | StickyImmix   |
-| `MMTK_MOVING`   | 0            | 1             |
-| `MMTK_BUILD`    | release      | debug         |
+| `MMTK_PLAN`     | Immix, StickyImmix, NoGC   |
+| `MMTK_MOVING`   | 0, 1             |
+| `MMTK_BUILD`    | release, debug         |
 
 Note that when setting only `MMTK_PLAN`, then the default is to do a non-moving, release build.
 

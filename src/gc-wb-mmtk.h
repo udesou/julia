@@ -20,6 +20,9 @@ extern const void* MMTK_SIDE_LOG_BIT_BASE_ADDRESS;
 #ifdef MMTK_PLAN_IMMIX
 #define MMTK_NEEDS_WRITE_BARRIER (0)
 #endif
+#ifdef MMTK_PLAN_NOGC
+#define MMTK_NEEDS_WRITE_BARRIER (0)
+#endif
 #ifdef MMTK_PLAN_STICKYIMMIX
 #define MMTK_NEEDS_WRITE_BARRIER (1)
 #endif

@@ -83,6 +83,8 @@ ifeq (${MMTK_PLAN},Immix)
 LIB_PATH_PLAN = immix
 else ifeq (${MMTK_PLAN},StickyImmix)
 LIB_PATH_PLAN = sticky
+else ifeq (${MMTK_PLAN},NoGC)
+LIB_PATH_PLAN = nogc
 endif
 
 ifeq ($(MMTK_MOVING), 0)

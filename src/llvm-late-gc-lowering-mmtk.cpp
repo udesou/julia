@@ -28,7 +28,12 @@ Value* LateLowerGCFrame::lowerGCAllocBytesLate(CallInst *target, Function &F)
             if (INLINE_FASTPATH_ALLOCATION) {
                 // Assuming we use the first immix allocator.
                 // FIXME: We should get the allocator index and type from MMTk.
-                auto allocator_offset = offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, mmtk_mutator) + offsetof(MMTkMutatorContext, allocators) + offsetof(Allocators, immix);
+#ifdef MMTK_PLAN_NOGC
+                auto inner_offset = offsetof(Allocators, bump_pointer);
+#else
+                auto inner_offset = offsetof(Allocators, immix);
+#endif
+                auto allocator_offset = offsetof(jl_tls_states_t, gc_tls) + offsetof(jl_gc_tls_states_t, mmtk_mutator) + offsetof(MMTkMutatorContext, allocators) + inner_offset;
 
                 auto cursor_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()), allocator_offset + offsetof(ImmixAllocator, cursor));
                 auto limit_pos = ConstantInt::get(Type::getInt64Ty(target->getContext()),  allocator_offset + offsetof(ImmixAllocator, limit));

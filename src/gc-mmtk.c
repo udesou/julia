@@ -843,7 +843,11 @@ STATIC_INLINE void* bump_alloc_fast(MMTkMutatorContext* mutator, uintptr_t* curs
 }
 
 STATIC_INLINE void* mmtk_immix_alloc_fast(MMTkMutatorContext* mutator, size_t size, size_t align, size_t offset) {
+#ifdef MMTK_PLAN_NOGC
+    ImmixAllocator* allocator = &mutator->allocators.bump_pointer[MMTK_DEFAULT_IMMIX_ALLOCATOR];
+#else
     ImmixAllocator* allocator = &mutator->allocators.immix[MMTK_DEFAULT_IMMIX_ALLOCATOR];
+#endif
     return bump_alloc_fast(mutator, (uintptr_t*)&allocator->cursor, (intptr_t)allocator->limit, size, align, offset, 0);
 }
 
