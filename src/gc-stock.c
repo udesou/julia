@@ -1111,10 +1111,10 @@ void sweep_stack_pool_loop(void) JL_NOTSAFEPOINT
         }
 
         small_arraylist_t *live_tasks = &ptls2->gc_tls_common.heap.live_tasks;
-        size_t n = 0;
-        size_t ndel = 0;
-        size_t l = live_tasks->len;
-        void **lst = live_tasks->items;
+        n = 0;
+        ndel = 0;
+        l = live_tasks->len;
+        lst = live_tasks->items;
         if (l == 0)
             continue;
         while (1) {
