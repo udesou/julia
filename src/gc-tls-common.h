@@ -22,7 +22,7 @@ typedef struct {
     small_arraylist_t live_tasks;
     // all tasks that are allocated in this thread
     // these will be used when doing conservative stack scanning
-    arraylist_t all_tasks;
+    small_arraylist_t all_tasks;
 
     // variable for tracking malloc'd arrays
     small_arraylist_t mallocarrays;

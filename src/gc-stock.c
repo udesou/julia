@@ -1087,7 +1087,7 @@ void sweep_stack_pool_loop(void) JL_NOTSAFEPOINT
         }
 
         // sweep list of all tasks
-        arraylist_t *all_tasks = &ptls2->gc_tls_common.heap.all_tasks;
+        small_arraylist_t *all_tasks = &ptls2->gc_tls_common.heap.all_tasks;
         size_t n = 0;
         size_t ndel = 0;
         size_t l = all_tasks->len;
@@ -3400,7 +3400,7 @@ static int _jl_gc_collect(jl_ptls_t ptls, jl_gc_collection_t collection) JL_NOTS
             if (common_heap->live_tasks.len == 0)
                 small_arraylist_free(&common_heap->live_tasks);
             if (common_heap->all_tasks.len == 0)
-                arraylist_free(&common_heap->all_tasks);
+                small_arraylist_free(&common_heap->all_tasks);
             if (heap->remset.len == 0)
                 arraylist_free(&heap->remset);
             if (ptls2->finalizers.len == 0)
@@ -3596,7 +3596,7 @@ void jl_init_thread_heap(jl_ptls_t ptls)
     }
     small_arraylist_new(&common_heap->weak_refs, 0);
     small_arraylist_new(&common_heap->live_tasks, 0);
-    arraylist_new(&common_heap->all_tasks, 0);
+    small_arraylist_new(&common_heap->all_tasks, 0);
     for (int i = 0; i < JL_N_STACK_POOLS; i++)
         small_arraylist_new(&common_heap->free_stacks[i], 0);
     small_arraylist_new(&common_heap->mallocarrays, 0);

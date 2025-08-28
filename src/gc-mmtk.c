@@ -185,7 +185,7 @@ void jl_init_thread_heap(struct _jl_tls_states_t *ptls) JL_NOTSAFEPOINT {
     jl_thread_heap_common_t *heap = &ptls->gc_tls_common.heap;
     small_arraylist_new(&heap->weak_refs, 0);
     small_arraylist_new(&heap->live_tasks, 0);
-    arraylist_new(&heap->all_tasks, 0);
+    small_arraylist_new(&heap->all_tasks, 0);
     for (int i = 0; i < JL_N_STACK_POOLS; i++)
         small_arraylist_new(&heap->free_stacks[i], 0);
     small_arraylist_new(&heap->mallocarrays, 0);
@@ -1046,7 +1046,7 @@ JL_DLLEXPORT void jl_gc_mmtk_sweep_stack_pools(void)
             small_arraylist_free(ptls2->gc_tls_common.heap.free_stacks);
         }
         // sweep list of all tasks
-        arraylist_t *all_tasks = &ptls2->gc_tls_common.heap.all_tasks;
+        small_arraylist_t *all_tasks = &ptls2->gc_tls_common.heap.all_tasks;
         size_t n = 0;
         size_t ndel = 0;
         size_t l = all_tasks->len;
